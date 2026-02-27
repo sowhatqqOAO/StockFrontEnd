@@ -28,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '22.19.0'
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -46,9 +46,14 @@ jobs:
           app_location: "/" # App source code path
           api_location: "" # Api source code path - optional
           output_location: "dist" # Built app content directory - optional
+          app_build_command: "pnpm run build" # 強制告訴 Azure 用 pnpm 來 build
           ###### End of Repository/Build Configurations ######
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          # 告訴 Azure Static Web Apps (Oryx 引擎) 不要自己跑 npm install，我們要自己掌控
+          SKIP_YARN_COREPACK_CHECK: true
+          SKIP_NPM_INSTALL: true
+          SKIP_YARN_INSTALL: true
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
