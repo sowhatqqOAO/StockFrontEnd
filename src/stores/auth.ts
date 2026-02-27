@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User, LoginRequest } from '@/types'
-import { mockLogin, mockVerifyToken } from '@/mock/auth'
+import type { User, LoginRequest, GoogleLoginRequest } from '@/types'
+import { mockLogin, mockVerifyToken, mockGoogleLogin } from '@/mock/auth'
 
 const TOKEN_KEY = 'auth_token'
 
@@ -27,6 +27,23 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem(TOKEN_KEY, response.token)
     } catch (e) {
       error.value = e instanceof Error ? e.message : '登入失敗'
+      throw e
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function loginWithGoogle(credentials: GoogleLoginRequest) {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await mockGoogleLogin(credentials)
+      token.value = response.token
+      user.value = response.user
+      localStorage.setItem(TOKEN_KEY, response.token)
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Google 登入失敗'
       throw e
     } finally {
       loading.value = false
@@ -69,6 +86,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     // Actions
     login,
+    loginWithGoogle,
     logout,
     checkAuth
   }

@@ -1,4 +1,5 @@
-import type { LoginRequest, LoginResponse, User } from '@/types'
+import type { LoginRequest, LoginResponse, User, GoogleLoginRequest } from '@/types'
+import { decodeCredential } from 'vue3-google-login'
 
 // Mock 用戶資料
 const mockUsers: Array<{ username: string; password: string; user: User }> = [
@@ -53,6 +54,44 @@ export async function mockLogin(request: LoginRequest): Promise<LoginResponse> {
   }
 }
 
+// 模擬 Google 登入 API
+export async function mockGoogleLogin(request: GoogleLoginRequest): Promise<LoginResponse> {
+  await new Promise(resolve => setTimeout(resolve, 500))
+
+  try {
+    const userData = decodeCredential(request.credential) as any
+
+    // 檢查或創建使用者
+    let found = mockUsers.find(u => u.user.email === userData.email)
+
+    if (!found) {
+      // 若為新用戶，自動註冊到 mockUsers
+      const newUser: User = {
+        id: Date.now().toString(),
+        username: userData.name || userData.email.split('@')[0],
+        email: userData.email
+      }
+      mockUsers.push({
+        username: newUser.username,
+        password: 'google_oauth_no_password',
+        user: newUser
+      })
+      found = mockUsers[mockUsers.length - 1]
+    }
+
+    if (!found) {
+      throw new Error('無法建立使用者')
+    }
+
+    return {
+      token: generateMockToken(found.user),
+      user: found.user
+    }
+  } catch (error) {
+    throw new Error('Google 登入驗證失敗')
+  }
+}
+
 // 模擬驗證 token
 export async function mockVerifyToken(token: string): Promise<User | null> {
   await new Promise(resolve => setTimeout(resolve, 100))
@@ -63,7 +102,7 @@ export async function mockVerifyToken(token: string): Promise<User | null> {
       return null
     }
     const payload = JSON.parse(atob(parts[1]))
-    
+
     if (payload.exp < Date.now()) {
       return null // Token 已過期
     }
