@@ -11,6 +11,11 @@ export interface LoginRequest {
   password: string
 }
 
+// Google 登入請求
+export interface GoogleLoginRequest {
+  credential: string
+}
+
 // 登入回應
 export interface LoginResponse {
   token: string
