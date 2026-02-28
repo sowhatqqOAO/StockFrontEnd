@@ -21,13 +21,13 @@ const DATA_START_DATE = '2026-01-06'
 const today = new Date()
 
 const startDate = ref<string>(DATA_START_DATE)
-const endDate = ref<string>(today.toISOString().split('T')[0])
+const endDate = ref<string>(today.toISOString().slice(0, 10))
 
 const maxEndDate = computed(() => {
   const start = new Date(startDate.value)
   start.setMonth(start.getMonth() + 2)
   const max = start > today ? today : start
-  return max.toISOString().split('T')[0]
+  return max.toISOString().slice(0, 10)
 })
 
 const onStartDateChange = () => {
