@@ -21,6 +21,23 @@ const handleGoogleLogin: CallbackTypes.CredentialCallback = async (response) => 
     // 錯誤訊息已在 store 中處理
   }
 }
+
+// 開發環境專用的緊急登入按鈕 (跳過 Google Auth)
+const handleDevLogin = async () => {
+  try {
+    await authStore.login({
+      username: 'admin',
+      password: 'admin123'
+    })
+    const redirect = (route.query.redirect as string) || '/'
+    router.push(redirect)
+  } catch {
+    // 錯誤交給 store
+  }
+}
+
+// 判斷是否為本地開發環境
+const isDev = import.meta.env.DEV
 </script>
 
 <template>
@@ -42,6 +59,18 @@ const handleGoogleLogin: CallbackTypes.CredentialCallback = async (response) => 
         <div class="flex flex-col items-center justify-center space-y-4">
           <GoogleLogin :callback="handleGoogleLogin" />
           <span v-if="authStore.loading" class="text-sm text-gray-500">登入中...</span>
+        </div>
+
+        <!-- 開發環境測試按鈕 (只在 npm run dev 時顯示) -->
+        <div v-if="isDev" class="mt-8 pt-6 border-t border-gray-200 text-center">
+          <p class="text-xs text-gray-400 mb-3">開發環境專用 (跳過 Google 授權)</p>
+          <button
+            @click="handleDevLogin"
+            type="button"
+            class="w-full bg-gray-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-gray-700 transition"
+          >
+            以測試帳號 (admin) 登入
+          </button>
         </div>
       </div>
     </div>

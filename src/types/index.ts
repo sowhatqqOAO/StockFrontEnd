@@ -41,7 +41,32 @@ export interface StockAnalysis {
   }
 }
 
-// API 回應包裝
+// 歷史推薦紀錄 (C# Azure Function 的真實回傳結構)
+export interface HistoryRecord {
+  StockCode: string
+  BuyPoint: number
+  SellPoint: number
+  SuggestedExitPoint: number
+  RecommendationDate: string
+  StrategyType: string
+  Ma5: number
+  Ma20: number
+}
+
+// 分頁包裝資料 (C# Pagination 結構)
+export interface PaginationMeta {
+  CurrentPage: number
+  PageSize: number
+  TotalCount: number
+  TotalPages: number
+}
+
+// API 分頁回應包裝 (C# 真實回傳結構)
+export interface PaginatedResponse<T> {
+  Data: T[]
+  Pagination: PaginationMeta
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T

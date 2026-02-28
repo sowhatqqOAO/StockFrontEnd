@@ -83,6 +83,20 @@ onMounted(() => {
         <div class="px-6 py-4 border-b border-gray-200">
           <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold text-gray-900">AI 分析建議</h2>
+            <!-- Content Options -->
+            <div class="flex space-x-1 sm:space-x-4 ml-8">
+              <button
+                v-for="view in ['dashboard', 'history']"
+                :key="view"
+                @click="view === 'history' ? router.push('/history') : null"
+                class="px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                :class="view === 'history'
+                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  : 'bg-blue-50 text-blue-700'"
+              >
+                {{ view === 'history' ? '歷史紀錄' : '今日推薦' }}
+              </button>
+            </div>
             <button
               @click="loadStocks"
               :disabled="loading"

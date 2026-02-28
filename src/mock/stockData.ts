@@ -72,14 +72,39 @@ export const mockStockAnalysisList: StockAnalysis[] = [
   }
 ]
 
-// 模擬取得股票分析列表 API
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
+
+// 取得股票分析列表 API
 export async function mockGetStockAnalysisList(): Promise<StockAnalysis[]> {
-  // 模擬網路延遲
-  await new Promise(resolve => setTimeout(resolve, 300))
-  return mockStockAnalysisList
+  try {
+    const token = localStorage.getItem('auth_token') || ''
+
+    const response = await fetch(`${API_BASE_URL}/api/USStock`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`)
+    }
+    // 假設後端回傳格式為 { success: true, data: [...] } 或直接 [...]
+    const result = await response.json()
+
+    // 如果後端有包裝一層 data
+    if (result.data) {
+      return result.data
+    }
+
+    return result as StockAnalysis[]
+  } catch (error) {
+    console.error('Failed to fetch real USStock data', error)
+    // 若後端 API 尚未開放，提供一個友善的空陣列或原本假資料
+    return mockStockAnalysisList
+  }
 }
 
-// 模擬取得單一股票分析 API
+// 模擬取得單一股票分析 API (若列表 API 也支援單一查詢可改寫)
 export async function mockGetStockAnalysis(symbol: string): Promise<StockAnalysis | null> {
   await new Promise(resolve => setTimeout(resolve, 200))
   return mockStockAnalysisList.find(s => s.symbol === symbol) ?? null
