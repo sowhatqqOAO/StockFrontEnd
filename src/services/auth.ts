@@ -18,14 +18,21 @@ export async function realGoogleLogin(request: GoogleLoginRequest): Promise<Logi
     }
 
     // 用一個輕量 API 確認 credential 有效（例如呼叫 history 拿 1 筆）
-    const verifyResponse = await fetch(`${API_BASE_URL}/api/history?page=1&pageSize=1`, {
-        headers: {
-            'Authorization': `Bearer ${request.credential}`
-        }
-    })
+    let verifyResponse: Response
+    try {
+        verifyResponse = await fetch(`${API_BASE_URL}/api/history?page=1&pageSize=1`, {
+            headers: {
+                'Authorization': `Bearer ${request.credential}`
+            }
+        })
+    } catch (err) {
+        console.error('Google 登入網路錯誤（可能是 CORS）：', err)
+        throw new Error('無法連線至後端伺服器，請確認 CORS 設定')
+    }
 
     if (!verifyResponse.ok) {
-        throw new Error('Google 登入驗證失敗，請確認帳號已被授權')
+        console.error('Google 登入驗證失敗，HTTP 狀態：', verifyResponse.status, await verifyResponse.text().catch(() => ''))
+        throw new Error(`Google 登入驗證失敗 (HTTP ${verifyResponse.status})，請確認帳號已被授權`)
     }
 
     // credential 直接當 token 用
