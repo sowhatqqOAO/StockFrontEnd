@@ -1,9 +1,23 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { User, LoginRequest, GoogleLoginRequest } from '@/types'
-import { mockLogin, mockVerifyToken, mockGoogleLogin } from '@/mock/auth'
 
 const TOKEN_KEY = 'auth_token'
+
+// 根據環境選擇 auth service
+// 開發環境使用 mock（含 DEV_TEST_TOKEN），正式環境使用真實 API
+const getAuthService = async () => {
+  if (import.meta.env.DEV) {
+    return await import('@/mock/auth')
+  } else {
+    const { realLogin, realGoogleLogin, realVerifyToken } = await import('@/services/auth')
+    return {
+      mockLogin: realLogin,
+      mockGoogleLogin: realGoogleLogin,
+      mockVerifyToken: realVerifyToken
+    }
+  }
+}
 
 export const useAuthStore = defineStore('auth', () => {
   // State
@@ -21,7 +35,8 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await mockLogin(credentials)
+      const authService = await getAuthService()
+      const response = await authService.mockLogin(credentials)
       token.value = response.token
       user.value = response.user
       localStorage.setItem(TOKEN_KEY, response.token)
@@ -38,7 +53,8 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      const response = await mockGoogleLogin(credentials)
+      const authService = await getAuthService()
+      const response = await authService.mockGoogleLogin(credentials)
       token.value = response.token
       user.value = response.user
       localStorage.setItem(TOKEN_KEY, response.token)
@@ -62,7 +78,8 @@ export const useAuthStore = defineStore('auth', () => {
     }
 
     try {
-      const verifiedUser = await mockVerifyToken(token.value)
+      const authService = await getAuthService()
+      const verifiedUser = await authService.mockVerifyToken(token.value)
       if (verifiedUser) {
         user.value = verifiedUser
         return true

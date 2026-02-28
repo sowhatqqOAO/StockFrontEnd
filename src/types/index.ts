@@ -41,7 +41,59 @@ export interface StockAnalysis {
   }
 }
 
-// API 回應包裝
+// 歷史推薦紀錄 (C# Azure Function 的真實回傳結構)
+export interface HistoryRecord {
+  StockCode: string
+  BuyPoint: number
+  SellPoint: number
+  SuggestedExitPoint: number
+  RecommendationDate: string
+  StrategyType: string
+  Ma5: number
+  Ma20: number
+  BacktestStatus?: BacktestStatus
+}
+
+// 回測狀態 (對齊 C# BacktestStatusEnum)
+export const BacktestStatus = {
+  Pending: 0,
+  Success: 1,
+  Failed: 2,
+  StopLoss: 3
+} as const
+export type BacktestStatus = typeof BacktestStatus[keyof typeof BacktestStatus]
+
+// 統計摘要
+export interface StatisticsSummary {
+  Total: number
+  Success: number
+  Failed: number
+  StopLoss: number
+  Pending: number
+  SuccessRate: number
+}
+
+// 統計 API 回應
+export interface StatisticsResponse {
+  Summary: StatisticsSummary
+  Details: HistoryRecord[]
+  Pagination: PaginationMeta
+}
+
+// 分頁包裝資料 (C# Pagination 結構)
+export interface PaginationMeta {
+  CurrentPage: number
+  PageSize: number
+  TotalCount: number
+  TotalPages: number
+}
+
+// API 分頁回應包裝 (C# 真實回傳結構)
+export interface PaginatedResponse<T> {
+  Data: T[]
+  Pagination: PaginationMeta
+}
+
 export interface ApiResponse<T> {
   success: boolean
   data?: T

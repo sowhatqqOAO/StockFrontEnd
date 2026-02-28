@@ -48,6 +48,14 @@ export async function mockLogin(request: LoginRequest): Promise<LoginResponse> {
     throw new Error('帳號或密碼錯誤')
   }
 
+  // 若為開發用管理員帳號，固定發放 dev token 供 Bypass Azure Function
+  if (found.username === 'admin') {
+    return {
+      token: 'DEV_TEST_TOKEN',
+      user: found.user
+    }
+  }
+
   return {
     token: generateMockToken(found.user),
     user: found.user
@@ -83,8 +91,9 @@ export async function mockGoogleLogin(request: GoogleLoginRequest): Promise<Logi
       throw new Error('無法建立使用者')
     }
 
+    // 在本地開發期間，一律核發 DEV_TEST_TOKEN 繞過後端驗證
     return {
-      token: generateMockToken(found.user),
+      token: 'DEV_TEST_TOKEN',
       user: found.user
     }
   } catch (error) {
@@ -92,9 +101,12 @@ export async function mockGoogleLogin(request: GoogleLoginRequest): Promise<Logi
   }
 }
 
-// 模擬驗證 token
 export async function mockVerifyToken(token: string): Promise<User | null> {
   await new Promise(resolve => setTimeout(resolve, 100))
+
+  if (token === 'DEV_TEST_TOKEN') {
+    return mockUsers.find(u => u.username === 'admin')?.user ?? null
+  }
 
   try {
     const parts = token.split('.')
