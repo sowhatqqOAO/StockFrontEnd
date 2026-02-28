@@ -2,20 +2,28 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { mockGetStockAnalysisList } from '@/mock/stockData'
-import type { StockAnalysis } from '@/types'
-import WatchlistTable from '@/components/WatchlistTable.vue'
+import { fetchHistoryRecords } from '@/services/history'
+import type { HistoryRecord } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
 
-const stocks = ref<StockAnalysis[]>([])
+const stocks = ref<HistoryRecord[]>([])
 const loading = ref(true)
+const totalCount = ref(0)
 
 async function loadStocks() {
   loading.value = true
   try {
-    stocks.value = await mockGetStockAnalysisList()
+    const res = await fetchHistoryRecords(1, 50)
+    if (res && res.Data && res.Data.length > 0) {
+      // 只取最新一天的推薦紀錄
+      const latestDate = res.Data[0].RecommendationDate.split('T')[0]
+      stocks.value = res.Data.filter(
+        r => r.RecommendationDate.split('T')[0] === latestDate
+      )
+      totalCount.value = res.Pagination.TotalCount
+    }
   } finally {
     loading.value = false
   }
@@ -29,6 +37,13 @@ function handleLogout() {
 onMounted(() => {
   loadStocks()
 })
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
+}
 </script>
 
 <template>
@@ -37,7 +52,7 @@ onMounted(() => {
     <header class="bg-white shadow">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-bold text-gray-900">股票觀察系統</h1>
+          <router-link to="/" class="text-2xl font-bold text-gray-900 hover:text-blue-600 transition cursor-pointer">股票觀察系統</router-link>
           <div class="flex items-center gap-4">
             <span class="text-gray-600">
               歡迎，{{ authStore.user?.username }}
@@ -58,23 +73,21 @@ onMounted(() => {
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white rounded-lg shadow p-6">
-          <div class="text-sm text-gray-500">觀察名單</div>
+          <div class="text-sm text-gray-500">最新推薦</div>
           <div class="text-3xl font-bold text-gray-900">{{ stocks.length }}</div>
           <div class="text-sm text-gray-500 mt-1">檔股票</div>
         </div>
         <div class="bg-white rounded-lg shadow p-6">
-          <div class="text-sm text-gray-500">高信心標的</div>
-          <div class="text-3xl font-bold text-green-600">
-            {{ stocks.filter(s => s.confidenceIndex >= 80).length }}
-          </div>
-          <div class="text-sm text-gray-500 mt-1">信心指數 ≥ 80%</div>
+          <div class="text-sm text-gray-500">推薦總計</div>
+          <div class="text-3xl font-bold text-blue-600">{{ totalCount }}</div>
+          <div class="text-sm text-gray-500 mt-1">筆紀錄</div>
         </div>
         <div class="bg-white rounded-lg shadow p-6">
-          <div class="text-sm text-gray-500">今日分析</div>
-          <div class="text-3xl font-bold text-blue-600">
-            {{ stocks.filter(s => s.analysisDate === '2026-02-06').length }}
+          <div class="text-sm text-gray-500">最新日期</div>
+          <div class="text-3xl font-bold text-green-600">
+            {{ stocks.length > 0 ? formatDate(stocks[0].RecommendationDate) : '-' }}
           </div>
-          <div class="text-sm text-gray-500 mt-1">最新更新</div>
+          <div class="text-sm text-gray-500 mt-1">最近一筆推薦</div>
         </div>
       </div>
 
@@ -82,19 +95,19 @@ onMounted(() => {
       <div class="bg-white rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200">
           <div class="flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-gray-900">AI 分析建議</h2>
+            <h2 class="text-lg font-semibold text-gray-900">最新推薦列表</h2>
             <!-- Content Options -->
             <div class="flex space-x-1 sm:space-x-4 ml-8">
               <button
-                v-for="view in ['dashboard', 'history']"
+                v-for="view in ['dashboard', 'history', 'statistics']"
                 :key="view"
-                @click="view === 'history' ? router.push('/history') : null"
+                @click="view === 'history' ? router.push('/history') : view === 'statistics' ? router.push('/statistics') : null"
                 class="px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
-                :class="view === 'history'
-                  ? 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                  : 'bg-blue-50 text-blue-700'"
+                :class="view === 'dashboard'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'"
               >
-                {{ view === 'history' ? '歷史紀錄' : '今日推薦' }}
+                {{ view === 'history' ? '歷史紀錄' : view === 'statistics' ? '回測統計' : '今日推薦' }}
               </button>
             </div>
             <button
@@ -106,7 +119,63 @@ onMounted(() => {
             </button>
           </div>
         </div>
-        <WatchlistTable :stocks="stocks" :loading="loading" />
+
+        <!-- Table Content -->
+        <div class="overflow-x-auto">
+          <!-- Loading State -->
+          <div v-if="loading" class="flex justify-center items-center py-12">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span class="ml-3 text-gray-600">載入中...</span>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="stocks.length === 0" class="text-center py-12 text-gray-500">
+            目前沒有推薦紀錄
+          </div>
+
+          <!-- Table -->
+          <table v-else class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">日期</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">股票代號</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">策略</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">推薦價</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">目標價</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">停損價</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <tr v-for="(stock, index) in stocks" :key="index" class="hover:bg-gray-50 transition-colors">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {{ formatDate(stock.RecommendationDate) }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <a
+                    :href="`https://tw.stock.yahoo.com/quote/${stock.StockCode}/technical-analysis`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                  >
+                    {{ stock.StockCode }}
+                  </a>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <span class="text-sm text-gray-900">{{ stock.StrategyType }}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
+                  ${{ stock.BuyPoint }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">
+                  ${{ stock.SellPoint }}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500">
+                  ${{ stock.SuggestedExitPoint }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Disclaimer -->

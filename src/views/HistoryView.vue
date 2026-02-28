@@ -67,7 +67,7 @@ const formatDate = (dateString: string) => {
     <header class="bg-white shadow z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex justify-between items-center">
-          <h1 class="text-2xl font-bold text-gray-900">股票觀察系統</h1>
+          <router-link to="/" class="text-2xl font-bold text-gray-900 hover:text-blue-600 transition cursor-pointer">股票觀察系統</router-link>
           <div class="flex items-center gap-4">
             <span class="text-gray-600">
               <!-- 未從 store 解構的話，需要在 <script> 引入 authStore -->
@@ -91,7 +91,7 @@ const formatDate = (dateString: string) => {
           <p class="mt-1 text-sm text-gray-500">檢視過去所有的 AI 股票推薦紀錄與績效狀態</p>
         </div>
         <!-- 可以在這裡放返回首頁按鈕 -->
-        <router-link to="/" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+          <router-link to="/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
           &larr; 返回儀表板
         </router-link>
       </div>

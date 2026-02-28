@@ -51,6 +51,33 @@ export interface HistoryRecord {
   StrategyType: string
   Ma5: number
   Ma20: number
+  BacktestStatus?: BacktestStatus
+}
+
+// 回測狀態 (對齊 C# BacktestStatusEnum)
+export const BacktestStatus = {
+  Pending: 0,
+  Success: 1,
+  Failed: 2,
+  StopLoss: 3
+} as const
+export type BacktestStatus = typeof BacktestStatus[keyof typeof BacktestStatus]
+
+// 統計摘要
+export interface StatisticsSummary {
+  Total: number
+  Success: number
+  Failed: number
+  StopLoss: number
+  Pending: number
+  SuccessRate: number
+}
+
+// 統計 API 回應
+export interface StatisticsResponse {
+  Summary: StatisticsSummary
+  Details: HistoryRecord[]
+  Pagination: PaginationMeta
 }
 
 // 分頁包裝資料 (C# Pagination 結構)
