@@ -20,7 +20,7 @@ async function loadStocks() {
     const res = await fetchHistoryRecords(1, 50)
     if (res && res.Data && res.Data.length > 0) {
       // 只取最新一天的推薦紀錄
-      const latestDate = res.Data[0].RecommendationDate.split('T')[0]
+      const latestDate = res.Data[0]!.RecommendationDate.split('T')[0]
       stocks.value = res.Data.filter(
         r => r.RecommendationDate.split('T')[0] === latestDate
       )
@@ -92,7 +92,7 @@ const formatDate = (dateString: string) => {
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div class="text-sm text-gray-500 dark:text-gray-400">最新日期</div>
           <div class="text-3xl font-bold text-green-600 dark:text-green-400">
-            {{ stocks.length > 0 ? formatDate(stocks[0].RecommendationDate) : '-' }}
+            {{ stocks.length > 0 ? formatDate(stocks[0]!.RecommendationDate) : '-' }}
           </div>
           <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">最近一筆推薦</div>
         </div>

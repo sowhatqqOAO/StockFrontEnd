@@ -20,8 +20,8 @@ const handleLogout = () => {
 const DATA_START_DATE = '2026-01-06'
 const today = new Date()
 
-const startDate = ref(DATA_START_DATE)
-const endDate = ref(today.toISOString().split('T')[0])
+const startDate = ref<string>(DATA_START_DATE)
+const endDate = ref<string>(today.toISOString().split('T')[0])
 
 const maxEndDate = computed(() => {
   const start = new Date(startDate.value)
@@ -31,8 +31,8 @@ const maxEndDate = computed(() => {
 })
 
 const onStartDateChange = () => {
-  if (endDate.value > maxEndDate.value) {
-    endDate.value = maxEndDate.value
+  if (endDate.value > maxEndDate.value!) {
+    endDate.value = maxEndDate.value!
   }
 }
 
@@ -45,7 +45,7 @@ const pagination = ref<PaginationMeta>({ CurrentPage: 1, PageSize: 20, TotalCoun
 const fetchData = async (page: number = 1) => {
   loading.value = true
   try {
-    const res = await fetchStatistics(startDate.value, endDate.value, page, pagination.value.PageSize)
+    const res = await fetchStatistics(startDate.value!, endDate.value!, page, pagination.value.PageSize)
     summary.value = res.Summary
     details.value = res.Details
     pagination.value = res.Pagination
