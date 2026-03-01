@@ -3,6 +3,7 @@ import type { StatisticsResponse } from '@/types'
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
 export async function fetchStatistics(
+    market: string,
     startDate: string,
     endDate: string,
     page: number = 1,
@@ -12,7 +13,7 @@ export async function fetchStatistics(
         const token = localStorage.getItem('auth_token') || ''
 
         const response = await fetch(
-            `${API_BASE_URL}/api/statistics?startDate=${startDate}&endDate=${endDate}&page=${page}&pageSize=${pageSize}`,
+            `${API_BASE_URL}/api/statistics?market=${market}&startDate=${startDate}&endDate=${endDate}&page=${page}&pageSize=${pageSize}`,
             {
                 headers: {
                     'Authorization': `Bearer ${token}`

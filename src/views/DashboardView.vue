@@ -1,14 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { fetchHistoryRecords } from '@/services/history'
+import { useMarketStore } from '@/stores/market'
 import type { HistoryRecord } from '@/types'
-import { useDarkMode } from '@/composables/useDarkMode'
 
 const router = useRouter()
-const authStore = useAuthStore()
-const { isDark, toggle: toggleDark } = useDarkMode()
+const marketStore = useMarketStore()
 
 const stocks = ref<HistoryRecord[]>([])
 const loading = ref(true)
@@ -17,7 +15,7 @@ const totalCount = ref(0)
 async function loadStocks() {
   loading.value = true
   try {
-    const res = await fetchHistoryRecords(1, 50)
+    const res = await fetchHistoryRecords(marketStore.currentMarket, 1, 50)
     if (res && res.Data && res.Data.length > 0) {
       // 只取最新一天的推薦紀錄
       const latestDate = res.Data[0]!.RecommendationDate.split('T')[0]
@@ -31,10 +29,11 @@ async function loadStocks() {
   }
 }
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
-}
+
+
+watch(() => marketStore.currentMarket, () => {
+  loadStocks()
+})
 
 onMounted(() => {
   loadStocks()
@@ -49,34 +48,9 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
-    <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex justify-between items-center">
-          <router-link to="/" class="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer">股票觀察系統</router-link>
-          <div class="flex items-center gap-4">
-            <!-- Dark Mode Toggle -->
-            <button @click="toggleDark" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300" title="切換深色模式">
-              <svg v-if="isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
-              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
-            </button>
-            <span class="text-gray-600 dark:text-gray-300">
-              歡迎，{{ authStore.user?.username }}
-            </span>
-            <button
-              @click="handleLogout"
-              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-            >
-              登出
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
+  <div class="h-full">
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="w-full">
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -191,6 +165,6 @@ const formatDate = (dateString: string) => {
           <strong>警語：</strong>本分析僅供參考，不代表投資建議。股市投資有風險，進場前請務必衡量自身風險承受度。
         </p>
       </div>
-    </main>
+    </div>
   </div>
 </template>

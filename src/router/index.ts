@@ -12,21 +12,25 @@ const router = createRouter({
     },
     {
       path: '/',
-      name: 'dashboard',
-      component: () => import('@/views/DashboardView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/history',
-      name: 'history',
-      component: () => import('@/views/HistoryView.vue'),
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/statistics',
-      name: 'statistics',
-      component: () => import('@/views/StatisticsView.vue'),
-      meta: { requiresAuth: true }
+      component: () => import('@/components/layout/MainLayout.vue'),
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'dashboard',
+          component: () => import('@/views/DashboardView.vue')
+        },
+        {
+          path: 'history',
+          name: 'history',
+          component: () => import('@/views/HistoryView.vue')
+        },
+        {
+          path: 'statistics',
+          name: 'statistics',
+          component: () => import('@/views/StatisticsView.vue')
+        }
+      ]
     },
     {
       path: '/:pathMatch(.*)*',

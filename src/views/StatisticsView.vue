@@ -1,20 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted, computed, watch } from 'vue'
 import { fetchStatistics } from '@/services/statistics'
+import { useMarketStore } from '@/stores/market'
 import type { StatisticsSummary, HistoryRecord, PaginationMeta } from '@/types'
 import { BacktestStatus } from '@/types'
-import { useDarkMode } from '@/composables/useDarkMode'
-
-const router = useRouter()
-const authStore = useAuthStore()
-const { isDark, toggle: toggleDark } = useDarkMode()
-
-const handleLogout = () => {
-  authStore.logout()
-  router.push('/login')
-}
+const marketStore = useMarketStore()
 
 // 日期範圍限制
 const DATA_START_DATE = '2026-01-06'
@@ -45,7 +35,7 @@ const pagination = ref<PaginationMeta>({ CurrentPage: 1, PageSize: 20, TotalCoun
 const fetchData = async (page: number = 1) => {
   loading.value = true
   try {
-    const res = await fetchStatistics(startDate.value!, endDate.value!, page, pagination.value.PageSize)
+    const res = await fetchStatistics(marketStore.currentMarket, startDate.value!, endDate.value!, page, pagination.value.PageSize)
     summary.value = res.Summary
     details.value = res.Details
     pagination.value = res.Pagination
@@ -59,6 +49,10 @@ const fetchData = async (page: number = 1) => {
 const handleSearch = () => { fetchData(1) }
 const nextPage = () => { if (pagination.value.CurrentPage < pagination.value.TotalPages) fetchData(pagination.value.CurrentPage + 1) }
 const prevPage = () => { if (pagination.value.CurrentPage > 1) fetchData(pagination.value.CurrentPage - 1) }
+
+watch(() => marketStore.currentMarket, () => {
+  fetchData(1)
+})
 
 onMounted(() => { fetchData(1) })
 
@@ -108,30 +102,8 @@ const pieGradient = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col pt-0 transition-colors">
-    <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 shadow z-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex justify-between items-center">
-          <router-link to="/" class="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer">股票觀察系統</router-link>
-          <div class="flex items-center gap-4">
-            <button @click="toggleDark" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300" title="切換深色模式">
-              <svg v-if="isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
-              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
-            </button>
-            <span class="text-gray-600 dark:text-gray-300">
-              歡迎，{{ authStore.user?.username ?? '訪客' }}
-            </span>
-            <button @click="handleLogout"
-              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
-              登出
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="h-full flex flex-col pt-0 transition-colors">
+    <div class="flex-1 w-full mx-auto">
       <!-- Page Title -->
       <div class="mb-8 flex justify-between items-center">
         <div>
@@ -331,6 +303,6 @@ const pieGradient = computed(() => {
           </div>
         </div>
       </template>
-    </main>
+    </div>
   </div>
 </template>
