@@ -17,6 +17,9 @@ importers:
       vue-router:
         specifier: ^5.0.2
         version: 5.0.2(@vue/compiler-sfc@3.5.27)(pinia@3.0.4(typescript@5.9.3)(vue@3.5.27(typescript@5.9.3)))(vue@3.5.27(typescript@5.9.3))
+      vue-turnstile:
+        specifier: ^1.0.11
+        version: 1.0.11(vue@3.5.27(typescript@5.9.3))
       vue3-google-login:
         specifier: ^2.0.37
         version: 2.0.37(vue@3.5.27(typescript@5.9.3))
@@ -926,6 +929,11 @@ packages:
     peerDependencies:
       typescript: '>=5.0.0'
 
+  vue-turnstile@1.0.11:
+    resolution: {integrity: sha512-iaTBoZ5oUqtNRto6bmbn6FQvW0h/sK7mPUJc1Qn4em+cELXN59U2FQTcpWfKssV3OY6lEZzmCpcn/zrb7htK3A==}
+    peerDependencies:
+      vue: ^3.2.45
+
   vue3-google-login@2.0.37:
     resolution: {integrity: sha512-1seGaevhcMPi/dKO36KktpqYMkJdzt4s5U7XjLvHPd50e8sCBcC8/Pv3Mz+QrK12rSOmiduTtxCuPcH2ULYozw==}
     peerDependencies:
@@ -1674,6 +1682,10 @@ snapshots:
       '@volar/typescript': 2.4.27
       '@vue/language-core': 3.2.4
       typescript: 5.9.3
+
+  vue-turnstile@1.0.11(vue@3.5.27(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.27(typescript@5.9.3)
 
   vue3-google-login@2.0.37(vue@3.5.27(typescript@5.9.3)):
     dependencies:

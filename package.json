@@ -12,6 +12,7 @@
     "pinia": "^3.0.4",
     "vue": "^3.5.24",
     "vue-router": "^5.0.2",
+    "vue-turnstile": "^1.0.11",
     "vue3-google-login": "^2.0.37"
   },
   "devDependencies": {
