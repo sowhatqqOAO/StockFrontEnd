@@ -3,10 +3,25 @@ import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { GoogleLogin } from 'vue3-google-login'
 import type { CallbackTypes } from 'vue3-google-login'
+import VueTurnstile from 'vue-turnstile'
+import { ref } from 'vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+
+const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
+const isTurnstileVerified = ref(false)
+const turnstileToken = ref('')
+
+const onTurnstileVerify = (token: string) => {
+  console.log('Turnstile Verified, Token:', token)
+  isTurnstileVerified.value = true
+}
+
+const onTurnstileError = () => {
+  isTurnstileVerified.value = false
+}
 
 const handleGoogleLogin: CallbackTypes.CredentialCallback = async (response) => {
   try {
@@ -55,9 +70,25 @@ const isDev = import.meta.env.DEV
           {{ authStore.error }}
         </div>
 
+        <!-- Cloudflare Turnstile -->
+        <div class="flex justify-center mb-6 min-h-[65px]">
+          <VueTurnstile 
+            v-if="siteKey"
+            :site-key="siteKey" 
+            v-model="turnstileToken"
+            @verify="onTurnstileVerify"
+            @error="onTurnstileError"
+            @expired="onTurnstileError"
+          />
+          <div v-else class="text-xs text-red-500">缺少 Turnstile Site Key</div>
+        </div>
+
         <!-- Google Login -->
         <div class="flex flex-col items-center justify-center space-y-4">
-          <GoogleLogin :callback="handleGoogleLogin" />
+          <div :class="{'opacity-50 pointer-events-none': !isTurnstileVerified, 'transition-opacity duration-300': true}">
+            <GoogleLogin :callback="handleGoogleLogin" />
+          </div>
+          <p v-if="!isTurnstileVerified" class="text-xs text-orange-500 mt-2">請先完成上方機器人驗證</p>
           <span v-if="authStore.loading" class="text-sm text-gray-500">登入中...</span>
         </div>
 
