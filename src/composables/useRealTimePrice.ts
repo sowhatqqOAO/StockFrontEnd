@@ -26,7 +26,7 @@ export function useRealTimePrice() {
             // Fetch prices concurrently for better performance
             const promises = symbols.map(async (symbol) => {
                 // Use an open CORS proxy
-                const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`
+                const targetUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`
                 const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
 
                 try {
