@@ -55,7 +55,8 @@ export interface HistoryRecord {
   Ma5: number
   Ma20: number
   BacktestStatus?: BacktestStatus
-  Market?: MarketType
+  Market?: MarketType,
+  AiComment?: string
 }
 
 // 回測狀態 (對齊 C# BacktestStatusEnum)

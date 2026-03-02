@@ -11,8 +11,20 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
 const totalPages = ref(0)
+const expandedRows = ref<Set<number>>(new Set())
+
+const toggleExpand = (index: number) => {
+  const newSet = new Set(expandedRows.value)
+  if (newSet.has(index)) {
+    newSet.delete(index)
+  } else {
+    newSet.add(index)
+  }
+  expandedRows.value = newSet
+}
 
 const fetchPage = async (page: number) => {
+  expandedRows.value.clear()
   loading.value = true
   try {
     const res = await fetchHistoryRecords(marketStore.currentMarket, page, pageSize.value)
@@ -69,6 +81,13 @@ const formatDate = (dateString: string) => {
         </router-link>
       </div>
 
+      <!-- Disclaimer -->
+      <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+        <p class="text-sm text-yellow-800 dark:text-yellow-300">
+          <strong>警語：</strong>本分析僅供參考，不代表投資建議。股市投資有風險，進場前請務必衡量自身風險承受度。
+        </p>
+      </div>
+
       <!-- Table Section -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
@@ -81,11 +100,12 @@ const formatDate = (dateString: string) => {
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
+                <th scope="col" class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-if="loading">
-                <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   <div class="flex justify-center items-center space-x-2">
                     <div class="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style="animation-delay: -0.3s"></div>
                     <div class="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style="animation-delay: -0.15s"></div>
@@ -95,12 +115,13 @@ const formatDate = (dateString: string) => {
                 </td>
               </tr>
               <tr v-else-if="records.length === 0">
-                <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   目前沒有歷史紀錄
                 </td>
               </tr>
-              <tr v-else v-for="(record, index) in records" :key="index" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+              <template v-else v-for="(record, index) in records" :key="index">
+                <tr @click="toggleExpand(index)" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {{ formatDate(record.RecommendationDate) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -123,7 +144,34 @@ const formatDate = (dateString: string) => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 dark:text-red-400">
                   ${{ record.SuggestedExitPoint }}
                 </td>
-              </tr>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" title="點擊展開 AI 分析">
+                  <div class="flex items-center justify-end text-gray-400 group-hover:text-blue-500 transition-colors">
+                    <span v-if="record.AiComment" class="mr-2 text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-0.5 rounded-full">AI 分析</span>
+                    <button>
+                      <svg :class="{'rotate-180': expandedRows.has(index)}" class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                </tr>
+                <!-- Expanded Row for AI Comment -->
+                <tr v-if="expandedRows.has(index)" class="bg-indigo-50/30 dark:bg-indigo-900/10 border-b-2 border-indigo-100 dark:border-indigo-900/30">
+                  <td colspan="7" class="px-6 py-4">
+                    <div class="flex items-start">
+                      <div class="flex-shrink-0 mr-3 mt-0.5">
+                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      </div>
+                      <div>
+                        <h4 class="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-1">AI 深度分析</h4>
+                        <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                          {{ record.AiComment || '目前無 AI 分析資料' }}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
