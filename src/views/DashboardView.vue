@@ -3,10 +3,12 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { fetchHistoryRecords } from '@/services/history'
 import { useMarketStore } from '@/stores/market'
+import { useRealTimePrice } from '@/composables/useRealTimePrice'
 import type { HistoryRecord } from '@/types'
 
 const router = useRouter()
 const marketStore = useMarketStore()
+const { currentPrices, isLoadingPrices, fetchPrices } = useRealTimePrice()
 
 const stocks = ref<HistoryRecord[]>([])
 const loading = ref(true)
@@ -35,6 +37,10 @@ async function loadStocks() {
         r => r.RecommendationDate.split('T')[0] === latestDate
       )
       totalCount.value = res.Pagination.TotalCount
+      
+      // 取得即時報價
+      const symbols = stocks.value.map(s => s.StockCode)
+      fetchPrices(symbols)
     }
   } finally {
     loading.value = false
@@ -139,7 +145,8 @@ const formatDate = (dateString: string) => {
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">策略</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">選股策略</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">即時價</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
@@ -165,7 +172,15 @@ const formatDate = (dateString: string) => {
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span class="text-sm text-gray-900 dark:text-gray-200">{{ stock.StrategyType }}</span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300 font-medium">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-medium">
+                  <span v-if="isLoadingPrices && !currentPrices[stock.StockCode]">
+                    <div class="h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </span>
+                  <span v-else>
+                    ${{ currentPrices[stock.StockCode]?.toFixed(2) || '-' }}
+                  </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-500 dark:text-orange-400 font-semibold">
                   ${{ stock.BuyPoint }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 font-semibold">
