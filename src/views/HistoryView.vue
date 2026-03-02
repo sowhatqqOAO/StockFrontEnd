@@ -135,7 +135,7 @@ const formatDate = (dateString: string) => {
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span class="text-sm text-gray-900 dark:text-gray-200">{{ record.StrategyType }}</span>
                 </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-500 dark:text-orange-400 font-semibold">
                   ${{ record.BuyPoint }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 font-semibold">
