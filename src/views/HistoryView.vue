@@ -2,8 +2,10 @@
 import { ref, onMounted, watch } from 'vue'
 import { fetchHistoryRecords } from '@/services/history'
 import { useMarketStore } from '@/stores/market'
+import { useRealTimePrice } from '@/composables/useRealTimePrice'
 import type { HistoryRecord } from '@/types'
 const marketStore = useMarketStore()
+const { currentPrices, isLoadingPrices, fetchPrices } = useRealTimePrice()
 
 const loading = ref(true)
 const records = ref<HistoryRecord[]>([])
@@ -33,6 +35,11 @@ const fetchPage = async (page: number) => {
       totalItems.value = res.Pagination.TotalCount
       totalPages.value = res.Pagination.TotalPages
       currentPage.value = res.Pagination.CurrentPage
+
+      // Fetch prices for the visible records
+      const symbols = records.value.map(r => r.StockCode)
+      // fetchPrices is async but we don't need to await it here, let it load in the background
+      fetchPrices(symbols)
     }
   } catch (error) {
     console.error('Failed to load history:', error)
@@ -97,6 +104,7 @@ const formatDate = (dateString: string) => {
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">選股策略</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">即時價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
@@ -134,6 +142,14 @@ const formatDate = (dateString: string) => {
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <span class="text-sm text-gray-900 dark:text-gray-200">{{ record.StrategyType }}</span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-medium">
+                  <span v-if="isLoadingPrices && !currentPrices[record.StockCode]">
+                    <div class="h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                  </span>
+                  <span v-else>
+                    ${{ currentPrices[record.StockCode]?.toFixed(2) || '-' }}
+                  </span>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-500 dark:text-orange-400 font-semibold">
                   ${{ record.BuyPoint }}
