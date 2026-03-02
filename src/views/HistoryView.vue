@@ -1,19 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+import { ref, onMounted, watch } from 'vue'
 import { fetchHistoryRecords } from '@/services/history'
+import { useMarketStore } from '@/stores/market'
 import type { HistoryRecord } from '@/types'
-import { useDarkMode } from '@/composables/useDarkMode'
-
-const router = useRouter()
-const authStore = useAuthStore()
-const { isDark, toggle: toggleDark } = useDarkMode()
-
-const handleLogout = () => {
-  authStore.logout()
-  router.push('/login')
-}
+const marketStore = useMarketStore()
 
 const loading = ref(true)
 const records = ref<HistoryRecord[]>([])
@@ -21,11 +11,23 @@ const currentPage = ref(1)
 const pageSize = ref(10)
 const totalItems = ref(0)
 const totalPages = ref(0)
+const expandedRows = ref<Set<number>>(new Set())
+
+const toggleExpand = (index: number) => {
+  const newSet = new Set(expandedRows.value)
+  if (newSet.has(index)) {
+    newSet.delete(index)
+  } else {
+    newSet.add(index)
+  }
+  expandedRows.value = newSet
+}
 
 const fetchPage = async (page: number) => {
+  expandedRows.value.clear()
   loading.value = true
   try {
-    const res = await fetchHistoryRecords(page, pageSize.value)
+    const res = await fetchHistoryRecords(marketStore.currentMarket, page, pageSize.value)
     if (res && res.Data) {
       records.value = res.Data
       totalItems.value = res.Pagination.TotalCount
@@ -51,6 +53,10 @@ const prevPage = () => {
   }
 }
 
+watch(() => marketStore.currentMarket, () => {
+  fetchPage(1)
+})
+
 onMounted(() => {
   fetchPage(1)
 })
@@ -63,32 +69,8 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-900 flex flex-col pt-0 transition-colors">
-    <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 shadow z-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex justify-between items-center">
-          <router-link to="/" class="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer">股票觀察系統</router-link>
-          <div class="flex items-center gap-4">
-            <button @click="toggleDark" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300" title="切換深色模式">
-              <svg v-if="isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
-              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
-            </button>
-            <span class="text-gray-600 dark:text-gray-300">
-              歡迎，{{ authStore.user?.username ?? '訪客' }}
-            </span>
-            <button
-              @click="handleLogout"
-              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-            >
-              登出
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-    
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="h-full flex flex-col pt-0 transition-colors">
+    <div class="flex-1 w-full mx-auto">
       <div class="mb-8 flex justify-between items-center">
         <div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">歷史推薦紀錄</h1>
@@ -97,6 +79,13 @@ const formatDate = (dateString: string) => {
         <router-link to="/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
           &larr; 返回儀表板
         </router-link>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+        <p class="text-sm text-yellow-800 dark:text-yellow-300">
+          <strong>警語：</strong>本分析僅供參考，不代表投資建議。股市投資有風險，進場前請務必衡量自身風險承受度。
+        </p>
       </div>
 
       <!-- Table Section -->
@@ -111,11 +100,12 @@ const formatDate = (dateString: string) => {
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
+                <th scope="col" class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-if="loading">
-                <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   <div class="flex justify-center items-center space-x-2">
                     <div class="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style="animation-delay: -0.3s"></div>
                     <div class="w-4 h-4 bg-blue-600 rounded-full animate-bounce" style="animation-delay: -0.15s"></div>
@@ -125,12 +115,13 @@ const formatDate = (dateString: string) => {
                 </td>
               </tr>
               <tr v-else-if="records.length === 0">
-                <td colspan="6" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                   目前沒有歷史紀錄
                 </td>
               </tr>
-              <tr v-else v-for="(record, index) in records" :key="index" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+              <template v-else v-for="(record, index) in records" :key="index">
+                <tr @click="toggleExpand(index)" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {{ formatDate(record.RecommendationDate) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -153,7 +144,34 @@ const formatDate = (dateString: string) => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 dark:text-red-400">
                   ${{ record.SuggestedExitPoint }}
                 </td>
-              </tr>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" title="點擊展開 AI 分析">
+                  <div class="flex items-center justify-end text-gray-400 group-hover:text-blue-500 transition-colors">
+                    <span v-if="record.AiComment" class="mr-2 text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-0.5 rounded-full">AI 分析</span>
+                    <button>
+                      <svg :class="{'rotate-180': expandedRows.has(index)}" class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                </tr>
+                <!-- Expanded Row for AI Comment -->
+                <tr v-if="expandedRows.has(index)" class="bg-indigo-50/30 dark:bg-indigo-900/10 border-b-2 border-indigo-100 dark:border-indigo-900/30">
+                  <td colspan="7" class="px-6 py-4">
+                    <div class="flex items-start">
+                      <div class="flex-shrink-0 mr-3 mt-0.5">
+                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      </div>
+                      <div>
+                        <h4 class="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-1">AI 深度分析</h4>
+                        <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                          {{ record.AiComment || '目前無 AI 分析資料' }}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
@@ -210,6 +228,6 @@ const formatDate = (dateString: string) => {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 </template>

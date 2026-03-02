@@ -2,11 +2,11 @@ import type { PaginatedResponse, HistoryRecord } from '@/types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || ''
 
-export async function fetchHistoryRecords(pageIndex: number, pageSize: number): Promise<PaginatedResponse<HistoryRecord>> {
+export async function fetchHistoryRecords(market: string, pageIndex: number, pageSize: number): Promise<PaginatedResponse<HistoryRecord>> {
     try {
         const token = localStorage.getItem('auth_token') || ''
 
-        const response = await fetch(`${API_BASE_URL}/api/history?page=${pageIndex}&pageSize=${pageSize}`, {
+        const response = await fetch(`${API_BASE_URL}/api/history?market=${market}&page=${pageIndex}&pageSize=${pageSize}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }

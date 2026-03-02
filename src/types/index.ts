@@ -5,6 +5,9 @@ export interface User {
   email?: string
 }
 
+// 市場類型
+export type MarketType = 'TW' | 'US'
+
 // 登入請求
 export interface LoginRequest {
   username: string
@@ -52,6 +55,8 @@ export interface HistoryRecord {
   Ma5: number
   Ma20: number
   BacktestStatus?: BacktestStatus
+  Market?: MarketType,
+  AiComment?: string
 }
 
 // 回測狀態 (對齊 C# BacktestStatusEnum)

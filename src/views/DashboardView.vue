@@ -1,23 +1,33 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
 import { fetchHistoryRecords } from '@/services/history'
+import { useMarketStore } from '@/stores/market'
 import type { HistoryRecord } from '@/types'
-import { useDarkMode } from '@/composables/useDarkMode'
 
 const router = useRouter()
-const authStore = useAuthStore()
-const { isDark, toggle: toggleDark } = useDarkMode()
+const marketStore = useMarketStore()
 
 const stocks = ref<HistoryRecord[]>([])
 const loading = ref(true)
 const totalCount = ref(0)
+const expandedRows = ref<Set<number>>(new Set())
+
+const toggleExpand = (index: number) => {
+  const newSet = new Set(expandedRows.value)
+  if (newSet.has(index)) {
+    newSet.delete(index)
+  } else {
+    newSet.add(index)
+  }
+  expandedRows.value = newSet
+}
 
 async function loadStocks() {
+  expandedRows.value.clear()
   loading.value = true
   try {
-    const res = await fetchHistoryRecords(1, 50)
+    const res = await fetchHistoryRecords(marketStore.currentMarket, 1, 50)
     if (res && res.Data && res.Data.length > 0) {
       // 只取最新一天的推薦紀錄
       const latestDate = res.Data[0]!.RecommendationDate.split('T')[0]
@@ -31,10 +41,11 @@ async function loadStocks() {
   }
 }
 
-function handleLogout() {
-  authStore.logout()
-  router.push('/login')
-}
+
+
+watch(() => marketStore.currentMarket, () => {
+  loadStocks()
+})
 
 onMounted(() => {
   loadStocks()
@@ -49,34 +60,9 @@ const formatDate = (dateString: string) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
-    <!-- Header -->
-    <header class="bg-white dark:bg-gray-800 shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex justify-between items-center">
-          <router-link to="/" class="text-2xl font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition cursor-pointer">股票觀察系統</router-link>
-          <div class="flex items-center gap-4">
-            <!-- Dark Mode Toggle -->
-            <button @click="toggleDark" class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-gray-600 dark:text-gray-300" title="切換深色模式">
-              <svg v-if="isDark" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"/></svg>
-              <svg v-else class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
-            </button>
-            <span class="text-gray-600 dark:text-gray-300">
-              歡迎，{{ authStore.user?.username }}
-            </span>
-            <button
-              @click="handleLogout"
-              class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-            >
-              登出
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
+  <div class="h-full">
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="w-full">
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
@@ -96,6 +82,13 @@ const formatDate = (dateString: string) => {
           </div>
           <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">最近一筆推薦</div>
         </div>
+      </div>
+
+      <!-- Disclaimer -->
+      <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+        <p class="text-sm text-yellow-800 dark:text-yellow-300">
+          <strong>警語：</strong>本分析僅供參考，不代表投資建議。股市投資有風險，進場前請務必衡量自身風險承受度。
+        </p>
       </div>
 
       <!-- Watchlist Table -->
@@ -150,11 +143,13 @@ const formatDate = (dateString: string) => {
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
+                <th class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
               </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-for="(stock, index) in stocks" :key="index" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+              <template v-for="(stock, index) in stocks" :key="index">
+                <tr @click="toggleExpand(index)" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                   {{ formatDate(stock.RecommendationDate) }}
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap">
@@ -179,18 +174,38 @@ const formatDate = (dateString: string) => {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 dark:text-red-400">
                   ${{ stock.SuggestedExitPoint }}
                 </td>
-              </tr>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" title="點擊展開 AI 分析">
+                  <div class="flex items-center justify-end text-gray-400 group-hover:text-blue-500 transition-colors">
+                    <span v-if="stock.AiComment" class="mr-2 text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-0.5 rounded-full">AI 分析</span>
+                    <button>
+                      <svg :class="{'rotate-180': expandedRows.has(index)}" class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
+                </td>
+                </tr>
+                <!-- Expanded Row for AI Comment -->
+                <tr v-if="expandedRows.has(index)" class="bg-indigo-50/30 dark:bg-indigo-900/10 border-b-2 border-indigo-100 dark:border-indigo-900/30">
+                  <td colspan="7" class="px-6 py-4">
+                    <div class="flex items-start">
+                      <div class="flex-shrink-0 mr-3 mt-0.5">
+                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                      </div>
+                      <div>
+                        <h4 class="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-1">AI 深度分析</h4>
+                        <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                          {{ stock.AiComment || '目前無 AI 分析資料' }}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
             </tbody>
           </table>
         </div>
       </div>
-
-      <!-- Disclaimer -->
-      <div class="mt-8 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-        <p class="text-sm text-yellow-800 dark:text-yellow-300">
-          <strong>警語：</strong>本分析僅供參考，不代表投資建議。股市投資有風險，進場前請務必衡量自身風險承受度。
-        </p>
-      </div>
-    </main>
+    </div>
   </div>
 </template>
