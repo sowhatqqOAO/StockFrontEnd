@@ -1,16 +1,5 @@
 import { ref } from 'vue'
 
-interface YahooQuoteResponse {
-    chart: {
-        result: Array<{
-            meta: {
-                regularMarketPrice: number
-                symbol: string
-            }
-        }> | null
-        error: any
-    }
-}
 
 export function useRealTimePrice() {
     const currentPrices = ref<Record<string, number>>({})
@@ -25,18 +14,23 @@ export function useRealTimePrice() {
         try {
             // Fetch prices concurrently for better performance
             const promises = symbols.map(async (symbol) => {
-                // Use an open CORS proxy
-                const targetUrl = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`
-                const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`
+                // Remove .TW for histock
+                const cleanSymbol = symbol.split('.')[0]
+                const targetUrl = `https://histock.tw/stock/${cleanSymbol}`
+                const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`
 
                 try {
                     const res = await fetch(proxyUrl)
                     if (!res.ok) throw new Error('Fetch failed')
 
-                    const data: YahooQuoteResponse = await res.json()
+                    const html = await res.text()
 
-                    if (data?.chart?.result?.[0]?.meta?.regularMarketPrice) {
-                        currentPrices.value[symbol] = data.chart.result[0].meta.regularMarketPrice
+                    if (html) {
+                        // parsing the "股價 67.2" out of the meta tag
+                        const match = html.match(/股價\s*([0-9.]+)/);
+                        if (match && match[1]) {
+                            currentPrices.value[symbol] = parseFloat(match[1])
+                        }
                     }
                 } catch (error) {
                     console.error(`Failed to fetch real-time price for ${symbol}:`, error)
