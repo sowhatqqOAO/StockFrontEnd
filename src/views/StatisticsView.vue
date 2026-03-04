@@ -50,6 +50,23 @@ const handleSearch = () => { fetchData(1) }
 const nextPage = () => { if (pagination.value.CurrentPage < pagination.value.TotalPages) fetchData(pagination.value.CurrentPage + 1) }
 const prevPage = () => { if (pagination.value.CurrentPage > 1) fetchData(pagination.value.CurrentPage - 1) }
 
+// Windowed pagination: shows at most 7 items (numbers or '...')
+type PageItem = number | '...'
+const visiblePages = computed<PageItem[]>(() => {
+  const total = pagination.value.TotalPages
+  const cur = pagination.value.CurrentPage
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+  const pages: PageItem[] = []
+  pages.push(1)
+  if (cur > 3) pages.push('...')
+  const start = Math.max(2, cur - 1)
+  const end = Math.min(total - 1, cur + 1)
+  for (let i = start; i <= end; i++) pages.push(i)
+  if (cur < total - 2) pages.push('...')
+  pages.push(total)
+  return pages
+})
+
 watch(() => marketStore.currentMarket, () => {
   fetchData(1)
 })
@@ -238,7 +255,7 @@ const pieGradient = computed(() => {
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="text-sm text-gray-900 dark:text-gray-200">{{ record.StrategyType }}</span>
                   </td>
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-500 dark:text-orange-400 font-semibold">
                     ${{ record.BuyPoint }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 font-semibold">
@@ -283,15 +300,20 @@ const pieGradient = computed(() => {
                     <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                   </svg>
                 </button>
-                <button v-for="page in pagination.TotalPages" :key="page" @click="fetchData(page)"
-                  :class="[
-                    page === pagination.CurrentPage
-                      ? 'z-10 bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600',
-                    'relative inline-flex items-center px-4 py-2 border text-sm font-medium'
-                  ]">
-                  {{ page }}
-                </button>
+                <template v-for="(page, i) in visiblePages" :key="i">
+                  <span v-if="page === '...'" class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400">...</span>
+                  <button v-else
+                    @click="fetchData(page)"
+                    :class="[
+                      page === pagination.CurrentPage
+                        ? 'z-10 bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 dark:text-blue-400'
+                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600',
+                      'relative inline-flex items-center px-4 py-2 border text-sm font-medium'
+                    ]"
+                  >
+                    {{ page }}
+                  </button>
+                </template>
                 <button @click="nextPage" :disabled="pagination.CurrentPage === pagination.TotalPages"
                   class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
                   <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
