@@ -50,22 +50,16 @@ const handleSearch = () => { fetchData(1) }
 const nextPage = () => { if (pagination.value.CurrentPage < pagination.value.TotalPages) fetchData(pagination.value.CurrentPage + 1) }
 const prevPage = () => { if (pagination.value.CurrentPage > 1) fetchData(pagination.value.CurrentPage - 1) }
 
-// Windowed pagination: shows at most 7 items (numbers or '...')
-type PageItem = number | '...'
-const visiblePages = computed<PageItem[]>(() => {
+// Fixed 5-page window
+const visiblePages = computed<number[]>(() => {
   const total = pagination.value.TotalPages
   const cur = pagination.value.CurrentPage
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
-  const pages: PageItem[] = []
-  pages.push(1)
-  if (cur > 3) pages.push('...')
-  const start = Math.max(2, cur - 1)
-  const end = Math.min(total - 1, cur + 1)
-  for (let i = start; i <= end; i++) pages.push(i)
-  if (cur < total - 2) pages.push('...')
-  pages.push(total)
-  return pages
+  const winStart = Math.max(1, Math.min(cur, total - 4))
+  const winEnd = Math.min(total, winStart + 4)
+  return Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i)
 })
+const showFirstBtn = computed(() => visiblePages.value.length > 0 && visiblePages.value[0]! > 1)
+const showLastBtn = computed(() => visiblePages.value.length > 0 && visiblePages.value[visiblePages.value.length - 1]! < pagination.value.TotalPages)
 
 watch(() => marketStore.currentMarket, () => {
   fetchData(1)
@@ -133,7 +127,7 @@ const pieGradient = computed(() => {
       </div>
 
       <!-- Date Range Picker -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+      <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
         <div class="flex flex-wrap items-center gap-3">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">查詢區間</span>
           <div class="inline-flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-sm">
@@ -172,22 +166,22 @@ const pieGradient = computed(() => {
       <template v-else>
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-green-500">
+          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-green-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">成功達標</p>
             <p class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{{ summary.Success }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ (summary.Total - summary.Pending) > 0 ? ((summary.Success / (summary.Total - summary.Pending)) * 100).toFixed(1) : 0 }}%</p>
           </div>
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-orange-500">
+          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-orange-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">未觸發停損停利</p>
             <p class="mt-2 text-3xl font-bold text-orange-600 dark:text-orange-400">{{ summary.Failed }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ (summary.Total - summary.Pending) > 0 ? ((summary.Failed / (summary.Total - summary.Pending)) * 100).toFixed(1) : 0 }}%</p>
           </div>
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-red-500">
+          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-red-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">觸發停損</p>
             <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">{{ summary.StopLoss }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ (summary.Total - summary.Pending) > 0 ? ((summary.StopLoss / (summary.Total - summary.Pending)) * 100).toFixed(1) : 0 }}%</p>
           </div>
-          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-gray-400">
+          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-gray-400">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">待回測</p>
             <p class="mt-2 text-3xl font-bold text-gray-600 dark:text-gray-300">{{ summary.Pending }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ summary.Total > 0 ? ((summary.Pending / summary.Total) * 100).toFixed(1) : 0 }}%</p>
@@ -195,7 +189,7 @@ const pieGradient = computed(() => {
         </div>
 
         <!-- Pie Chart -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 flex flex-col items-center justify-center mb-6">
+        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 flex flex-col items-center justify-center mb-6">
           <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">整體成功率</p>
           <div class="relative w-40 h-40">
             <div class="w-full h-full rounded-full" :style="{ background: pieGradient }"></div>
@@ -214,7 +208,7 @@ const pieGradient = computed(() => {
         </div>
 
         <!-- Overall Stats Bar -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6 flex items-center justify-between">
+        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-4 mb-6 flex items-center justify-between">
           <span class="text-sm text-gray-600 dark:text-gray-400">
             總計 <strong class="text-gray-900 dark:text-white">{{ summary.Total }}</strong> 筆推薦，
             成功率 <strong class="text-green-600 dark:text-green-400">{{ summary.SuccessRate }}%</strong>
@@ -222,10 +216,10 @@ const pieGradient = computed(() => {
         </div>
 
         <!-- Detail Table -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead class="bg-gray-50 dark:bg-gray-700/50">
+              <thead class="bg-stone-50 dark:bg-gray-700/50">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
@@ -300,20 +294,27 @@ const pieGradient = computed(() => {
                     <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
                   </svg>
                 </button>
-                <template v-for="(page, i) in visiblePages" :key="i">
-                  <span v-if="page === '...'" class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400">...</span>
-                  <button v-else
-                    @click="fetchData(page)"
-                    :class="[
-                      page === pagination.CurrentPage
-                        ? 'z-10 bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 dark:text-blue-400'
-                        : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600',
-                      'relative inline-flex items-center px-4 py-2 border text-sm font-medium'
-                    ]"
-                  >
-                    {{ page }}
-                  </button>
-                </template>
+                <!-- Jump to first page -->
+                <button v-if="showFirstBtn" @click="fetchData(1)"
+                  class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  ⇤ 1
+                </button>
+                <!-- 5-page window -->
+                <button v-for="page in visiblePages" :key="page" @click="fetchData(page)"
+                  :class="[
+                    page === pagination.CurrentPage
+                      ? 'z-10 bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600',
+                    'relative inline-flex items-center px-4 py-2 border text-sm font-medium'
+                  ]"
+                >
+                  {{ page }}
+                </button>
+                <!-- Jump to last page -->
+                <button v-if="showLastBtn" @click="fetchData(pagination.TotalPages)"
+                  class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  {{ pagination.TotalPages }} ⇥
+                </button>
                 <button @click="nextPage" :disabled="pagination.CurrentPage === pagination.TotalPages"
                   class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
                   <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">

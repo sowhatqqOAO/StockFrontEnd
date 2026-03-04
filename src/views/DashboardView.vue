@@ -71,17 +71,17 @@ const formatDate = (dateString: string) => {
     <div class="w-full">
       <!-- Stats Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-6">
           <div class="text-sm text-gray-500 dark:text-gray-400">最新推薦</div>
           <div class="text-3xl font-bold text-gray-900 dark:text-white">{{ stocks.length }}</div>
           <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">檔股票</div>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-6">
           <div class="text-sm text-gray-500 dark:text-gray-400">推薦總計</div>
           <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ totalCount }}</div>
           <div class="text-sm text-gray-500 dark:text-gray-400 mt-1">筆紀錄</div>
         </div>
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-6">
           <div class="text-sm text-gray-500 dark:text-gray-400">最新日期</div>
           <div class="text-3xl font-bold text-green-600 dark:text-green-400">
             {{ stocks.length > 0 ? formatDate(stocks[0]!.RecommendationDate) : '-' }}
@@ -98,7 +98,7 @@ const formatDate = (dateString: string) => {
       </div>
 
       <!-- Watchlist Table -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow">
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">最新推薦列表</h2>
@@ -141,7 +141,7 @@ const formatDate = (dateString: string) => {
 
           <!-- Table -->
           <table v-else class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700/50">
+            <thead class="bg-stone-50 dark:bg-gray-700/50">
               <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
