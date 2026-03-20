@@ -15,6 +15,24 @@ const totalItems = ref(0)
 const totalPages = ref(0)
 const expandedRows = ref<Set<number>>(new Set())
 
+const searchQuery = ref('')
+let searchTimeout: ReturnType<typeof setTimeout> | null = null
+
+const handleSearchInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const filtered = target.value.replace(/[^a-zA-Z0-9.]/g, '').toUpperCase()
+  searchQuery.value = filtered
+  
+  if (target.value !== filtered) {
+    target.value = filtered
+  }
+
+  if (searchTimeout) clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(() => {
+    fetchPage(1)
+  }, 500)
+}
+
 const toggleExpand = (index: number) => {
   const newSet = new Set(expandedRows.value)
   if (newSet.has(index)) {
@@ -29,7 +47,7 @@ const fetchPage = async (page: number) => {
   expandedRows.value.clear()
   loading.value = true
   try {
-    const res = await fetchHistoryRecords(marketStore.currentMarket, page, pageSize.value)
+    const res = await fetchHistoryRecords(marketStore.currentMarket, page, pageSize.value, searchQuery.value)
     if (res && res.Data) {
       records.value = res.Data
       totalItems.value = res.Pagination.TotalCount
@@ -89,14 +107,30 @@ const formatDate = (dateString: string) => {
 <template>
   <div class="h-full flex flex-col pt-0 transition-colors">
     <div class="flex-1 w-full mx-auto">
-      <div class="mb-8 flex justify-between items-center">
+      <div class="mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">歷史推薦紀錄</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">檢視過去所有的 AI 股票推薦紀錄與績效狀態</p>
         </div>
-        <router-link to="/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
-          &larr; 返回儀表板
-        </router-link>
+        <div class="flex items-center gap-4 w-full sm:w-auto">
+          <div class="relative w-full sm:w-64">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg class="h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <input 
+              :value="searchQuery"
+              @input="handleSearchInput"
+              type="text" 
+              placeholder="搜尋股票代號..." 
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+            >
+          </div>
+          <router-link to="/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm whitespace-nowrap">
+            &larr; 返回儀表板
+          </router-link>
+        </div>
       </div>
 
       <!-- Disclaimer -->

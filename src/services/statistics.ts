@@ -7,19 +7,22 @@ export async function fetchStatistics(
     startDate: string,
     endDate: string,
     page: number = 1,
-    pageSize: number = 20
+    pageSize: number = 20,
+    symbol: string = ''
 ): Promise<StatisticsResponse> {
     try {
         const token = localStorage.getItem('auth_token') || ''
 
-        const response = await fetch(
-            `${API_BASE_URL}/api/statistics?market=${market}&startDate=${startDate}&endDate=${endDate}&page=${page}&pageSize=${pageSize}`,
-            {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+        let url = `${API_BASE_URL}/api/statistics?market=${market}&startDate=${startDate}&endDate=${endDate}&page=${page}&pageSize=${pageSize}`
+        if (symbol) {
+            url += `&symbol=${encodeURIComponent(symbol)}`
+        }
+
+        const response = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${token}`
             }
-        )
+        })
 
         if (!response.ok) {
             throw new Error('API 請求失敗')
