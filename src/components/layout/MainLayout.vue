@@ -13,12 +13,18 @@ const handleLogout = () => {
   authStore.logout()
   router.push('/login')
 }
+
+const navTabs = [
+  { label: '今日推薦', to: '/' },
+  { label: '歷史紀錄', to: '/history' },
+  { label: '回測統計', to: '/statistics' }
+]
 </script>
 
 <template>
-  <div class="min-h-screen bg-stone-100 dark:bg-gray-900 flex flex-col pt-0 transition-colors">
+  <div class="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col pt-0 transition-colors">
     <!-- 全域 Header -->
-    <header class="bg-white dark:bg-gray-800 shadow z-10">
+    <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm z-10">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div class="flex justify-between items-center flex-wrap gap-4">
           <!-- Logo & Title -->
@@ -27,24 +33,26 @@ const handleLogout = () => {
           </router-link>
 
           <!-- Market Toggle -->
-          <div class="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-            <button 
+          <div class="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg" role="group" aria-label="切換市場">
+            <button
               @click="marketStore.setMarket('TW')"
-              :class="['px-4 py-1.5 text-sm font-medium rounded-md transition-colors', 
-                       marketStore.currentMarket === 'TW' 
-                         ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+              :aria-pressed="marketStore.currentMarket === 'TW'"
+              :class="['px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                       marketStore.currentMarket === 'TW'
+                         ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-400 shadow-sm'
                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200']"
             >
-              🇹🇼 台股 (TW)
+              台股 TW
             </button>
-            <button 
+            <button
               @click="marketStore.setMarket('US')"
-              :class="['px-4 py-1.5 text-sm font-medium rounded-md transition-colors', 
-                       marketStore.currentMarket === 'US' 
-                         ? 'bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm' 
+              :aria-pressed="marketStore.currentMarket === 'US'"
+              :class="['px-4 py-1.5 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                       marketStore.currentMarket === 'US'
+                         ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-400 shadow-sm'
                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200']"
             >
-              🇺🇸 美股 (US)
+              美股 US
             </button>
           </div>
 
@@ -67,6 +75,23 @@ const handleLogout = () => {
           </div>
         </div>
       </div>
+
+      <!-- 全域導航頁籤 -->
+      <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" aria-label="主導航">
+        <div class="flex gap-1 -mb-px">
+          <router-link
+            v-for="tab in navTabs"
+            :key="tab.to"
+            :to="tab.to"
+            class="px-4 py-3 text-sm font-medium border-b-2 transition-colors"
+            :class="$route.path === tab.to
+              ? 'border-blue-600 text-blue-700 dark:border-blue-400 dark:text-blue-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'"
+          >
+            {{ tab.label }}
+          </router-link>
+        </div>
+      </nav>
     </header>
 
     <!-- Page Content -->
