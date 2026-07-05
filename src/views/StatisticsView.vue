@@ -10,23 +10,40 @@ import type { StatisticsSummary, HistoryRecord, PaginationMeta } from '@/types'
 import { BacktestStatus } from '@/types'
 const marketStore = useMarketStore()
 
-// 日期範圍限制
+// 日期範圍限制：資料自 DATA_START_DATE 起收錄，查詢區間最長 2 個月
 const DATA_START_DATE = '2026-01-06'
 const today = new Date()
+const toISODate = (d: Date) => d.toISOString().slice(0, 10)
 
-const startDate = ref<string>(DATA_START_DATE)
-const endDate = ref<string>(today.toISOString().slice(0, 10))
+// 預設起始日 = 今天 - 2 個月（不得早於資料收錄起始日）
+const defaultStart = new Date(today)
+defaultStart.setMonth(defaultStart.getMonth() - 2)
+const defaultStartStr = toISODate(defaultStart) < DATA_START_DATE ? DATA_START_DATE : toISODate(defaultStart)
+
+const startDate = ref<string>(defaultStartStr)
+const endDate = ref<string>(toISODate(today))
 
 const maxEndDate = computed(() => {
   const start = new Date(startDate.value)
   start.setMonth(start.getMonth() + 2)
   const max = start > today ? today : start
-  return max.toISOString().slice(0, 10)
+  return toISODate(max)
 })
 
+// 改起始日：結束日超出 2 個月上限時往回拉
 const onStartDateChange = () => {
   if (endDate.value > maxEndDate.value!) {
     endDate.value = maxEndDate.value!
+  }
+}
+
+// 改結束日：起始日早於（結束日 - 2 個月）時往前推，鎖定區間最長 2 個月
+const onEndDateChange = () => {
+  const minStart = new Date(endDate.value)
+  minStart.setMonth(minStart.getMonth() - 2)
+  const minStartStr = toISODate(minStart)
+  if (startDate.value < minStartStr) {
+    startDate.value = minStartStr < DATA_START_DATE ? DATA_START_DATE : minStartStr
   }
 }
 
@@ -122,23 +139,20 @@ const pieGradient = computed(() => {
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">回測統計分析</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">查詢指定區間內推薦的回測結果統計</p>
         </div>
-        <router-link to="/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm">
-          &larr; 返回儀表板
-        </router-link>
       </div>
 
       <!-- Date Range Picker -->
-      <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-4 mb-4">
+      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 mb-4">
         <div class="flex flex-wrap items-center gap-3">
           <span class="text-sm font-medium text-gray-700 dark:text-gray-300">查詢區間</span>
           <div class="inline-flex items-center border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden shadow-sm">
             <input id="startDate" v-model="startDate" type="date"
               :min="DATA_START_DATE" :max="endDate" @change="onStartDateChange"
-              class="px-3 py-2 border-0 focus:ring-0 sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700" />
+              class="px-3 py-2 border-0 focus:ring-0 sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800" />
             <span class="px-2 text-gray-400 bg-gray-50 dark:bg-gray-600 text-sm select-none">~</span>
             <input id="endDate" v-model="endDate" type="date"
-              :min="startDate" :max="maxEndDate"
-              class="px-3 py-2 border-0 focus:ring-0 sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700" />
+              :min="startDate" :max="maxEndDate" @change="onEndDateChange"
+              class="px-3 py-2 border-0 focus:ring-0 sm:text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800" />
           </div>
 
           <div class="relative w-full sm:w-48">
@@ -153,7 +167,7 @@ const pieGradient = computed(() => {
               @keyup.enter="handleSearch"
               type="text"
               placeholder="股票代號..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
             >
           </div>
 
@@ -201,22 +215,22 @@ const pieGradient = computed(() => {
       <template v-else>
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-green-500">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-green-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">成功達標</p>
             <p class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{{ summary.Success }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Success, completedTotal) }}%</p>
           </div>
-          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-orange-500">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-orange-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">未觸發停損停利</p>
             <p class="mt-2 text-3xl font-bold text-orange-600 dark:text-orange-400">{{ summary.Failed }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Failed, completedTotal) }}%</p>
           </div>
-          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-red-500">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-red-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">觸發停損</p>
             <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">{{ summary.StopLoss }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.StopLoss, completedTotal) }}%</p>
           </div>
-          <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-gray-400">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-gray-400">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">待回測</p>
             <p class="mt-2 text-3xl font-bold text-gray-600 dark:text-gray-300">{{ summary.Pending }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Pending, summary.Total) }}%</p>
@@ -224,12 +238,12 @@ const pieGradient = computed(() => {
         </div>
 
         <!-- Pie Chart -->
-        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 flex flex-col items-center justify-center mb-6">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 flex flex-col items-center justify-center mb-6">
           <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">整體成功率</p>
           <div class="relative w-40 h-40">
             <div class="w-full h-full rounded-full" :style="{ background: pieGradient }"></div>
             <div class="absolute inset-0 flex items-center justify-center">
-              <div class="w-24 h-24 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center shadow-inner">
+              <div class="w-24 h-24 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center shadow-inner">
                 <span class="text-2xl font-bold text-gray-800 dark:text-white">{{ summary.SuccessRate }}%</span>
               </div>
             </div>
@@ -243,7 +257,7 @@ const pieGradient = computed(() => {
         </div>
 
         <!-- Overall Stats Bar -->
-        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-4 mb-6 flex items-center justify-between">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-4 mb-6 flex items-center justify-between">
           <span class="text-sm text-gray-600 dark:text-gray-400">
             總計 <strong class="text-gray-900 dark:text-white">{{ summary.Total }}</strong> 筆推薦，
             成功率 <strong class="text-green-600 dark:text-green-400">{{ summary.SuccessRate }}%</strong>
@@ -251,10 +265,10 @@ const pieGradient = computed(() => {
         </div>
 
         <!-- Detail Table -->
-        <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead class="bg-stone-50 dark:bg-gray-700/50">
+              <thead class="bg-gray-50 dark:bg-gray-800/60">
                 <tr>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
@@ -266,13 +280,13 @@ const pieGradient = computed(() => {
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">狀態</th>
                 </tr>
               </thead>
-              <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                 <tr v-if="details.length === 0">
                   <td colspan="8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     {{ summary.Total === 0 ? '該區間內沒有推薦紀錄' : '沒有明細資料' }}
                   </td>
                 </tr>
-                <tr v-else v-for="record in details" :key="recordKey(record)" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <tr v-else v-for="record in details" :key="recordKey(record)" class="hover:bg-blue-50/50 dark:hover:bg-gray-800/50 transition-colors">
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {{ formatDate(record.RecommendationDate) }}
                   </td>

@@ -50,9 +50,9 @@ const isDev = import.meta.env.DEV
 </script>
 
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors">
+  <div class="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 transition-colors">
     <div class="max-w-md w-full mx-4">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
+      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-lg p-8">
         <!-- Header -->
         <div class="text-center mb-8">
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">股票觀察系統</h1>

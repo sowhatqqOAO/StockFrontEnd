@@ -34,7 +34,7 @@ watch(() => props.records, () => {
 <template>
   <div class="overflow-x-auto">
     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-      <thead class="bg-stone-50 dark:bg-gray-700/50">
+      <thead class="bg-gray-50 dark:bg-gray-800/60">
         <tr>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
@@ -47,7 +47,7 @@ watch(() => props.records, () => {
           <th scope="col" class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
         </tr>
       </thead>
-      <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+      <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
         <tr v-if="loading">
           <td colspan="9" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
             <div class="flex justify-center items-center space-x-2">
@@ -64,7 +64,7 @@ watch(() => props.records, () => {
           </td>
         </tr>
         <template v-else v-for="record in records" :key="recordKey(record)">
-          <tr @click="toggleExpand(recordKey(record))" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group">
+          <tr @click="toggleExpand(recordKey(record))" class="hover:bg-blue-50/50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group">
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
               {{ formatDate(record.RecommendationDate) }}
             </td>

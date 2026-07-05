@@ -72,12 +72,9 @@ onMounted(() => {
               @input="handleSearchInput"
               type="text"
               placeholder="搜尋股票代號..."
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
             >
           </div>
-          <router-link to="/" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition shadow-sm whitespace-nowrap">
-            &larr; 返回儀表板
-          </router-link>
         </div>
       </div>
 
@@ -93,7 +90,7 @@ onMounted(() => {
       </div>
 
       <!-- Table Section -->
-      <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+      <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
         <RecommendationTable
           :records="records"
           :loading="loading"
