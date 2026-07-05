@@ -2,6 +2,10 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { fetchStatistics } from '@/services/statistics'
 import { useMarketStore } from '@/stores/market'
+import { useDebouncedSymbolSearch } from '@/composables/useDebouncedSymbolSearch'
+import PaginationBar from '@/components/PaginationBar.vue'
+import { formatDate } from '@/utils/date'
+import { getStockLinkUrl, recordKey, formatProbability } from '@/utils/stock'
 import type { StatisticsSummary, HistoryRecord, PaginationMeta } from '@/types'
 import { BacktestStatus } from '@/types'
 const marketStore = useMarketStore()
@@ -28,60 +32,43 @@ const onStartDateChange = () => {
 
 // 資料
 const loading = ref(false)
+const error = ref<string | null>(null)
+const isStale = ref(false)
 const summary = ref<StatisticsSummary>({ Total: 0, Success: 0, Failed: 0, StopLoss: 0, Pending: 0, SuccessRate: 0 })
 const details = ref<HistoryRecord[]>([])
 const pagination = ref<PaginationMeta>({ CurrentPage: 1, PageSize: 20, TotalCount: 0, TotalPages: 0 })
 
-const searchQuery = ref('')
-const handleSearchInput = (e: Event) => {
-  const target = e.target as HTMLInputElement
-  const filtered = target.value.replace(/[^a-zA-Z0-9.]/g, '').toUpperCase()
-  searchQuery.value = filtered
-  if (target.value !== filtered) {
-    target.value = filtered
-  }
-}
+const { searchQuery, handleSearchInput } = useDebouncedSymbolSearch()
 
 const fetchData = async (page: number = 1) => {
   loading.value = true
+  error.value = null
   try {
     const res = await fetchStatistics(marketStore.currentMarket, startDate.value!, endDate.value!, page, pagination.value.PageSize, searchQuery.value)
     summary.value = res.Summary
     details.value = res.Details
     pagination.value = res.Pagination
-  } catch (error) {
-    console.error('Failed to load statistics:', error)
+    isStale.value = false
+  } catch (e) {
+    console.error('Failed to load statistics:', e)
+    error.value = e instanceof Error ? e.message : '載入失敗，請稍後再試'
   } finally {
     loading.value = false
   }
 }
 
 const handleSearch = () => { fetchData(1) }
-const nextPage = () => { if (pagination.value.CurrentPage < pagination.value.TotalPages) fetchData(pagination.value.CurrentPage + 1) }
-const prevPage = () => { if (pagination.value.CurrentPage > 1) fetchData(pagination.value.CurrentPage - 1) }
 
-// Fixed 5-page window
-const visiblePages = computed<number[]>(() => {
-  const total = pagination.value.TotalPages
-  const cur = pagination.value.CurrentPage
-  const winStart = Math.max(1, Math.min(cur, total - 4))
-  const winEnd = Math.min(total, winStart + 4)
-  return Array.from({ length: winEnd - winStart + 1 }, (_, i) => winStart + i)
+// 查詢條件變更但尚未重新查詢時提示（market 變更會自動重查，不設 stale）
+watch([startDate, endDate, searchQuery], () => {
+  isStale.value = true
 })
-const showFirstBtn = computed(() => visiblePages.value.length > 0 && visiblePages.value[0]! > 1)
-const showLastBtn = computed(() => visiblePages.value.length > 0 && visiblePages.value[visiblePages.value.length - 1]! < pagination.value.TotalPages)
 
 watch(() => marketStore.currentMarket, () => {
   fetchData(1)
 })
 
 onMounted(() => { fetchData(1) })
-
-const formatDate = (dateString: string) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
-}
 
 const getStatusInfo = (status?: number) => {
   switch (status) {
@@ -96,6 +83,10 @@ const getStatusInfo = (status?: number) => {
       return { text: '待回測', color: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }
   }
 }
+
+// 已完成回測的總數（分母）
+const completedTotal = computed(() => summary.value.Total - summary.value.Pending)
+const pct = (count: number, denom: number) => denom > 0 ? ((count / denom) * 100).toFixed(1) : '0'
 
 const pieSlices = computed(() => {
   const total = summary.value.Total
@@ -156,12 +147,12 @@ const pieGradient = computed(() => {
                 <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
               </svg>
             </div>
-            <input 
+            <input
               :value="searchQuery"
               @input="handleSearchInput"
               @keyup.enter="handleSearch"
-              type="text" 
-              placeholder="股票代號..." 
+              type="text"
+              placeholder="股票代號..."
               class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
             >
           </div>
@@ -181,6 +172,23 @@ const pieGradient = computed(() => {
         </p>
       </div>
 
+      <!-- Stale Notice -->
+      <div v-if="isStale && !loading" class="mb-6 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg flex items-start gap-2">
+        <span class="text-amber-500 mt-0.5">ℹ️</span>
+        <p class="text-sm text-amber-800 dark:text-amber-300">
+          查詢條件已變更，請點「查詢」重新載入結果。
+        </p>
+      </div>
+
+      <!-- Error State -->
+      <div v-if="error" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg flex items-center justify-between">
+        <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
+        <button @click="fetchData(pagination.CurrentPage)"
+          class="ml-4 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition whitespace-nowrap">
+          重試
+        </button>
+      </div>
+
       <!-- Loading State -->
       <div v-if="loading" class="flex justify-center py-12">
         <div class="flex items-center space-x-2">
@@ -196,22 +204,22 @@ const pieGradient = computed(() => {
           <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-green-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">成功達標</p>
             <p class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{{ summary.Success }}</p>
-            <p class="mt-1 text-xs text-gray-400">{{ (summary.Total - summary.Pending) > 0 ? ((summary.Success / (summary.Total - summary.Pending)) * 100).toFixed(1) : 0 }}%</p>
+            <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Success, completedTotal) }}%</p>
           </div>
           <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-orange-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">未觸發停損停利</p>
             <p class="mt-2 text-3xl font-bold text-orange-600 dark:text-orange-400">{{ summary.Failed }}</p>
-            <p class="mt-1 text-xs text-gray-400">{{ (summary.Total - summary.Pending) > 0 ? ((summary.Failed / (summary.Total - summary.Pending)) * 100).toFixed(1) : 0 }}%</p>
+            <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Failed, completedTotal) }}%</p>
           </div>
           <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-red-500">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">觸發停損</p>
             <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">{{ summary.StopLoss }}</p>
-            <p class="mt-1 text-xs text-gray-400">{{ (summary.Total - summary.Pending) > 0 ? ((summary.StopLoss / (summary.Total - summary.Pending)) * 100).toFixed(1) : 0 }}%</p>
+            <p class="mt-1 text-xs text-gray-400">{{ pct(summary.StopLoss, completedTotal) }}%</p>
           </div>
           <div class="bg-stone-50 dark:bg-gray-800 rounded-lg shadow p-5 border-l-4 border-gray-400">
             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">待回測</p>
             <p class="mt-2 text-3xl font-bold text-gray-600 dark:text-gray-300">{{ summary.Pending }}</p>
-            <p class="mt-1 text-xs text-gray-400">{{ summary.Total > 0 ? ((summary.Pending / summary.Total) * 100).toFixed(1) : 0 }}%</p>
+            <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Pending, summary.Total) }}%</p>
           </div>
         </div>
 
@@ -254,21 +262,22 @@ const pieGradient = computed(() => {
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">模型勝率</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">狀態</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 <tr v-if="details.length === 0">
-                  <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colspan="8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     {{ summary.Total === 0 ? '該區間內沒有推薦紀錄' : '沒有明細資料' }}
                   </td>
                 </tr>
-                <tr v-else v-for="(record, index) in details" :key="index" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                <tr v-else v-for="record in details" :key="recordKey(record)" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                     {{ formatDate(record.RecommendationDate) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
-                    <a :href="`https://tw.stock.yahoo.com/quote/${record.StockCode}/technical-analysis`"
+                    <a :href="getStockLinkUrl(record.StockCode)"
                       target="_blank" rel="noopener noreferrer"
                       class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                     >{{ record.StockCode }}</a>
@@ -285,6 +294,9 @@ const pieGradient = computed(() => {
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 dark:text-red-400">
                     ${{ record.SuggestedExitPoint }}
                   </td>
+                  <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-600 dark:text-purple-400 font-semibold">
+                    {{ formatProbability(record.ModelProbability) }}
+                  </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
                       :class="getStatusInfo(record.BacktestStatus).color">
@@ -296,61 +308,13 @@ const pieGradient = computed(() => {
             </table>
           </div>
 
-          <!-- Pagination -->
-          <div v-if="pagination.TotalPages > 1" class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between sm:px-6">
-            <div class="flex-1 flex justify-between sm:hidden">
-              <button @click="prevPage" :disabled="pagination.CurrentPage === 1"
-                class="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                前一頁
-              </button>
-              <button @click="nextPage" :disabled="pagination.CurrentPage === pagination.TotalPages"
-                class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                下一頁
-              </button>
-            </div>
-            <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <p class="text-sm text-gray-700 dark:text-gray-300">
-                顯示第 <span class="font-medium">{{ (pagination.CurrentPage - 1) * pagination.PageSize + 1 }}</span>
-                至 <span class="font-medium">{{ Math.min(pagination.CurrentPage * pagination.PageSize, pagination.TotalCount) }}</span>
-                筆，共 <span class="font-medium">{{ pagination.TotalCount }}</span> 筆紀錄
-              </p>
-              <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button @click="prevPage" :disabled="pagination.CurrentPage === 1"
-                  class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-                <!-- Jump to first page -->
-                <button v-if="showFirstBtn" @click="fetchData(1)"
-                  class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">
-                  ⇤ 1
-                </button>
-                <!-- 5-page window -->
-                <button v-for="page in visiblePages" :key="page" @click="fetchData(page)"
-                  :class="[
-                    page === pagination.CurrentPage
-                      ? 'z-10 bg-blue-50 dark:bg-blue-900/30 border-blue-500 text-blue-600 dark:text-blue-400'
-                      : 'bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600',
-                    'relative inline-flex items-center px-4 py-2 border text-sm font-medium'
-                  ]"
-                >
-                  {{ page }}
-                </button>
-                <!-- Jump to last page -->
-                <button v-if="showLastBtn" @click="fetchData(pagination.TotalPages)"
-                  class="relative inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-gray-50 dark:hover:bg-gray-600">
-                  {{ pagination.TotalPages }} ⇥
-                </button>
-                <button @click="nextPage" :disabled="pagination.CurrentPage === pagination.TotalPages"
-                  class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                  <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                  </svg>
-                </button>
-              </nav>
-            </div>
-          </div>
+          <PaginationBar
+            :current-page="pagination.CurrentPage"
+            :total-pages="pagination.TotalPages"
+            :page-size="pagination.PageSize"
+            :total-count="pagination.TotalCount"
+            @change="fetchData"
+          />
         </div>
       </template>
     </div>

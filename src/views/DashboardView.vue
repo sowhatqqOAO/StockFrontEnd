@@ -1,53 +1,56 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { fetchHistoryRecords } from '@/services/history'
 import { useMarketStore } from '@/stores/market'
 import { useRealTimePrice } from '@/composables/useRealTimePrice'
+import RecommendationTable from '@/components/RecommendationTable.vue'
+import Disclaimer from '@/components/Disclaimer.vue'
+import { formatDate } from '@/utils/date'
 import type { HistoryRecord } from '@/types'
 
-const router = useRouter()
+const route = useRoute()
 const marketStore = useMarketStore()
 const { currentPrices, isLoadingPrices, fetchPrices } = useRealTimePrice()
 
 const stocks = ref<HistoryRecord[]>([])
 const loading = ref(true)
+const error = ref<string | null>(null)
 const totalCount = ref(0)
-const expandedRows = ref<Set<number>>(new Set())
 
-const toggleExpand = (index: number) => {
-  const newSet = new Set(expandedRows.value)
-  if (newSet.has(index)) {
-    newSet.delete(index)
-  } else {
-    newSet.add(index)
-  }
-  expandedRows.value = newSet
-}
+const tabs = [
+  { label: '今日推薦', to: '/' },
+  { label: '歷史紀錄', to: '/history' },
+  { label: '回測統計', to: '/statistics' }
+]
 
 async function loadStocks() {
-  expandedRows.value.clear()
   loading.value = true
+  error.value = null
   try {
     const res = await fetchHistoryRecords(marketStore.currentMarket, 1, 50)
-    if (res && res.Data && res.Data.length > 0) {
+    if (res.Data.length > 0) {
       // 只取最新一天的推薦紀錄
       const latestDate = res.Data[0]!.RecommendationDate.split('T')[0]
       stocks.value = res.Data.filter(
         r => r.RecommendationDate.split('T')[0] === latestDate
       )
       totalCount.value = res.Pagination.TotalCount
-      
+
       // 取得即時報價
-      const symbols = stocks.value.map(s => s.StockCode)
-      fetchPrices(symbols)
+      fetchPrices(stocks.value.map(s => s.StockCode))
+    } else {
+      stocks.value = []
+      totalCount.value = 0
     }
+  } catch (e) {
+    console.error('Failed to load recommendations:', e)
+    error.value = e instanceof Error ? e.message : '載入失敗，請稍後再試'
+    stocks.value = []
   } finally {
     loading.value = false
   }
 }
-
-
 
 watch(() => marketStore.currentMarket, () => {
   loadStocks()
@@ -56,13 +59,6 @@ watch(() => marketStore.currentMarket, () => {
 onMounted(() => {
   loadStocks()
 })
-
-// 格式化日期
-const formatDate = (dateString: string) => {
-  if (!dateString) return ''
-  const date = new Date(dateString)
-  return date.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit' })
-}
 </script>
 
 <template>
@@ -90,11 +86,15 @@ const formatDate = (dateString: string) => {
         </div>
       </div>
 
-      <!-- Disclaimer -->
-      <div class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
-        <p class="text-sm text-yellow-800 dark:text-yellow-300">
-          <strong>警語：</strong>本分析僅供參考，不代表投資建議。股市投資有風險，進場前請務必衡量自身風險承受度。
-        </p>
+      <Disclaimer />
+
+      <!-- Error State -->
+      <div v-if="error" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg flex items-center justify-between">
+        <p class="text-sm text-red-800 dark:text-red-300">{{ error }}</p>
+        <button @click="loadStocks"
+          class="ml-4 px-4 py-2 text-sm bg-red-600 text-white rounded-lg hover:bg-red-700 transition whitespace-nowrap">
+          重試
+        </button>
       </div>
 
       <!-- Watchlist Table -->
@@ -104,17 +104,17 @@ const formatDate = (dateString: string) => {
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">最新推薦列表</h2>
             <!-- Content Options -->
             <div class="flex space-x-1 sm:space-x-4 ml-8">
-              <button
-                v-for="view in ['dashboard', 'history', 'statistics']"
-                :key="view"
-                @click="view === 'history' ? router.push('/history') : view === 'statistics' ? router.push('/statistics') : null"
+              <router-link
+                v-for="tab in tabs"
+                :key="tab.to"
+                :to="tab.to"
                 class="px-3 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
-                :class="view === 'dashboard'
+                :class="route.path === tab.to
                   ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'"
               >
-                {{ view === 'history' ? '歷史紀錄' : view === 'statistics' ? '回測統計' : '今日推薦' }}
-              </button>
+                {{ tab.label }}
+              </router-link>
             </div>
             <button
               @click="loadStocks"
@@ -126,100 +126,13 @@ const formatDate = (dateString: string) => {
           </div>
         </div>
 
-        <!-- Table Content -->
-        <div class="overflow-x-auto">
-          <!-- Loading State -->
-          <div v-if="loading" class="flex justify-center items-center py-12">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <span class="ml-3 text-gray-600 dark:text-gray-400">載入中...</span>
-          </div>
-
-          <!-- Empty State -->
-          <div v-else-if="stocks.length === 0" class="text-center py-12 text-gray-500 dark:text-gray-400">
-            目前沒有推薦紀錄
-          </div>
-
-          <!-- Table -->
-          <table v-else class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-stone-50 dark:bg-gray-700/50">
-              <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">日期</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">股票代號</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">選股策略</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">即時價</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">推薦價</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
-                <th class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
-              </tr>
-            </thead>
-            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              <template v-for="(stock, index) in stocks" :key="index">
-                <tr @click="toggleExpand(index)" class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors cursor-pointer group">
-                  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {{ formatDate(stock.RecommendationDate) }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <a
-                    :href="`https://tw.stock.yahoo.com/quote/${stock.StockCode}/technical-analysis`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium text-sm"
-                  >
-                    {{ stock.StockCode }}
-                  </a>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap">
-                  <span class="text-sm text-gray-900 dark:text-gray-200">{{ stock.StrategyType }}</span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-medium">
-                  <span v-if="isLoadingPrices && !currentPrices[stock.StockCode]">
-                    <div class="h-4 w-12 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
-                  </span>
-                  <span v-else>
-                    ${{ currentPrices[stock.StockCode]?.toFixed(2) || '-' }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-orange-500 dark:text-orange-400 font-semibold">
-                  ${{ stock.BuyPoint }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 dark:text-green-400 font-semibold">
-                  ${{ stock.SellPoint }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-red-500 dark:text-red-400">
-                  ${{ stock.SuggestedExitPoint }}
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" title="點擊展開 AI 分析">
-                  <div class="flex items-center justify-end text-gray-400 group-hover:text-blue-500 transition-colors">
-                    <span v-if="stock.AiComment" class="mr-2 text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-0.5 rounded-full">AI 分析</span>
-                    <button>
-                      <svg :class="{'rotate-180': expandedRows.has(index)}" class="h-5 w-5 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </td>
-                </tr>
-                <!-- Expanded Row for AI Comment -->
-                <tr v-if="expandedRows.has(index)" class="bg-indigo-50/30 dark:bg-indigo-900/10 border-b-2 border-indigo-100 dark:border-indigo-900/30">
-                  <td colspan="7" class="px-6 py-4">
-                    <div class="flex items-start">
-                      <div class="flex-shrink-0 mr-3 mt-0.5">
-                        <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                      </div>
-                      <div>
-                        <h4 class="text-sm font-semibold text-indigo-900 dark:text-indigo-300 mb-1">AI 深度分析</h4>
-                        <p class="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                          {{ stock.AiComment || '目前無 AI 分析資料' }}
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              </template>
-            </tbody>
-          </table>
-        </div>
+        <RecommendationTable
+          :records="stocks"
+          :loading="loading"
+          empty-text="目前沒有推薦紀錄"
+          :current-prices="currentPrices"
+          :is-loading-prices="isLoadingPrices"
+        />
       </div>
     </div>
   </div>
