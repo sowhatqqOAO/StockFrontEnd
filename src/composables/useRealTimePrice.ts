@@ -5,9 +5,14 @@ export function useRealTimePrice() {
     const currentPrices = ref<Record<string, number>>({})
     const isLoadingPrices = ref(false)
 
+    // 遞增的請求編號：晚回來的舊請求不得寫入結果或關閉 loading
+    let requestId = 0
+
     const fetchPrices = async (symbols: string[]) => {
         if (!symbols || symbols.length === 0) return
 
+        const id = ++requestId
+        currentPrices.value = {}
         isLoadingPrices.value = true
 
         // Yahoo Finance API expects TW stocks to have .TW or .TWO suffix, which they already do in DB.
@@ -30,7 +35,7 @@ export function useRealTimePrice() {
 
                         const html = await res.text()
 
-                        if (html) {
+                        if (html && id === requestId) {
                             const match = html.match(/股價\s*([0-9.]+)/)
                             if (match && match[1]) {
                                 currentPrices.value[symbol] = parseFloat(match[1])
@@ -60,7 +65,7 @@ export function useRealTimePrice() {
                         if (!res.ok) throw new Error('Fetch failed')
 
                         const data = await res.json()
-                        if (data && data.data) {
+                        if (data && data.data && id === requestId) {
                             data.data.forEach((item: any) => {
                                 const symbol = item.s.split(':')[1]
                                 currentPrices.value[symbol] = item.d[0]
@@ -74,7 +79,9 @@ export function useRealTimePrice() {
 
             await Promise.all(promises)
         } finally {
-            isLoadingPrices.value = false
+            if (id === requestId) {
+                isLoadingPrices.value = false
+            }
         }
     }
 

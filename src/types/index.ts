@@ -57,6 +57,7 @@ export interface HistoryRecord {
   BacktestStatus?: BacktestStatus
   Market?: MarketType,
   AiComment?: string
+  ModelProbability?: number | null
 }
 
 // 回測狀態 (對齊 C# BacktestStatusEnum)
