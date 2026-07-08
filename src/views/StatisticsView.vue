@@ -359,8 +359,8 @@ const pieGradient = computed(() => {
         </div>
         </CollapsibleSection>
 
-        <!-- 績效圖表（預設展開） -->
-        <CollapsibleSection title="績效圖表">
+        <!-- 績效圖表（預設收合） -->
+        <CollapsibleSection title="績效圖表" :default-open="false">
         <!-- 累積損益曲線 -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 mb-6">
           <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1">
