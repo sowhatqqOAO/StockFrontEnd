@@ -57,19 +57,22 @@ export interface HistoryRecord {
   BacktestStatus?: BacktestStatus
   Market?: MarketType,
   AiComment?: string
-  ModelProbability?: number | null
+  ModelProbability?: number | null   // ML 模型預測達標機率 0~1；null = 舊資料或無法計算
+  BacktestPnlPercent?: number | null // 回測實際損益 %；null = 未回測或未成交
+  FilteredByRegime?: boolean         // true = 被大盤濾網攔下（僅記錄未推播）
 }
 
-// 回測狀態 (對齊 C# BacktestStatusEnum)
+// 回測狀態 (對齊 C# BacktestStatusEnum，2026-07 新增 NotTriggered)
 export const BacktestStatus = {
-  Pending: 0,
-  Success: 1,
-  Failed: 2,
-  StopLoss: 3
+  Pending: 0,      // 尚未回測（未滿 10 個交易日）
+  Success: 1,      // 觸及停利價
+  Failed: 2,       // 到期未觸發停利/停損（損益照實計算）
+  StopLoss: 3,     // 觸發停損
+  NotTriggered: 4  // 股價從未回到買點，交易不存在（不計入勝率）
 } as const
 export type BacktestStatus = typeof BacktestStatus[keyof typeof BacktestStatus]
 
-// 統計摘要
+// 統計摘要（2026-07 新增期望值相關指標；null = 區間內無成交樣本）
 export interface StatisticsSummary {
   Total: number
   Success: number
@@ -77,6 +80,13 @@ export interface StatisticsSummary {
   StopLoss: number
   Pending: number
   SuccessRate: number
+  NotTriggered?: number
+  FilledCount?: number
+  AvgWinPercent?: number | null
+  AvgLossPercent?: number | null
+  PayoffRatio?: number | null
+  Expectancy?: number | null
+  ProfitFactor?: number | null
 }
 
 // 統計 API 回應

@@ -4,10 +4,12 @@ import { fetchStatistics } from '@/services/statistics'
 import { useMarketStore } from '@/stores/market'
 import { useDebouncedSymbolSearch } from '@/composables/useDebouncedSymbolSearch'
 import PaginationBar from '@/components/PaginationBar.vue'
+import EquityCurveChart from '@/components/charts/EquityCurveChart.vue'
+import MonthlyExpectancyChart from '@/components/charts/MonthlyExpectancyChart.vue'
+import CalibrationChart from '@/components/charts/CalibrationChart.vue'
 import { formatDate } from '@/utils/date'
-import { getStockLinkUrl, recordKey, formatProbability } from '@/utils/stock'
+import { getStockLinkUrl, recordKey, formatProbability, formatPnl, pnlColorClass, getStatusInfo } from '@/utils/stock'
 import type { StatisticsSummary, HistoryRecord, PaginationMeta } from '@/types'
-import { BacktestStatus } from '@/types'
 const marketStore = useMarketStore()
 
 // 日期範圍限制：資料自 DATA_START_DATE 起收錄，查詢區間最長 2 個月
@@ -57,6 +59,9 @@ const pagination = ref<PaginationMeta>({ CurrentPage: 1, PageSize: 20, TotalCoun
 
 const { searchQuery, handleSearchInput } = useDebouncedSymbolSearch()
 
+// 圖表用全量資料（分頁表格只有一頁，圖表需要區間內全部記錄）
+const chartRecords = ref<HistoryRecord[]>([])
+
 const fetchData = async (page: number = 1) => {
   loading.value = true
   error.value = null
@@ -66,6 +71,13 @@ const fetchData = async (page: number = 1) => {
     details.value = res.Details
     pagination.value = res.Pagination
     isStale.value = false
+
+    // 背景抓圖表全量資料（首頁載入時；翻頁不重抓）
+    if (page === 1) {
+      fetchStatistics(marketStore.currentMarket, startDate.value!, endDate.value!, 1, 500, searchQuery.value)
+        .then(full => { chartRecords.value = full.Details })
+        .catch(e => console.error('Failed to load chart data:', e))
+    }
   } catch (e) {
     console.error('Failed to load statistics:', e)
     error.value = e instanceof Error ? e.message : '載入失敗，請稍後再試'
@@ -73,6 +85,21 @@ const fetchData = async (page: number = 1) => {
     loading.value = false
   }
 }
+
+// KPI 格式化：null = 無成交樣本顯示 '-'；賺賠比/獲利因子在零虧損時數學上為 ∞
+const fmtKpi = (v: number | null | undefined, suffix = '') =>
+  v === null || v === undefined ? '-' : `${v > 0 && suffix === '%' ? '+' : ''}${v.toFixed(2)}${suffix}`
+const fmtRatio = (v: number | null | undefined) => {
+  if (v !== null && v !== undefined) return v.toFixed(2)
+  // 有獲利樣本但比值為 null → 零虧損樣本 → ∞
+  return summary.value.AvgWinPercent != null ? '∞' : '-'
+}
+const fillRate = computed(() => {
+  const denom = summary.value.Total - summary.value.Pending
+  const filled = summary.value.FilledCount
+  if (!denom || filled === null || filled === undefined) return null
+  return Math.round((filled / denom) * 100)
+})
 
 const handleSearch = () => { fetchData(1) }
 
@@ -87,20 +114,6 @@ watch(() => marketStore.currentMarket, () => {
 
 onMounted(() => { fetchData(1) })
 
-const getStatusInfo = (status?: number) => {
-  switch (status) {
-    case BacktestStatus.Success:
-      return { text: '達標', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' }
-    case BacktestStatus.Failed:
-      return { text: '未觸發停損停利', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400' }
-    case BacktestStatus.StopLoss:
-      return { text: '停損', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' }
-    case BacktestStatus.Pending:
-    default:
-      return { text: '待回測', color: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400' }
-  }
-}
-
 // 已完成回測的總數（分母）
 const completedTotal = computed(() => summary.value.Total - summary.value.Pending)
 const pct = (count: number, denom: number) => denom > 0 ? ((count / denom) * 100).toFixed(1) : '0'
@@ -110,10 +123,11 @@ const pieSlices = computed(() => {
   if (total === 0) return []
   const items = [
     { label: '成功達標', count: summary.value.Success, color: '#22c55e' },
-    { label: '未觸發停損停利', count: summary.value.Failed, color: '#f97316' },
+    { label: '到期出場', count: summary.value.Failed, color: '#f97316' },
     { label: '觸發停損', count: summary.value.StopLoss, color: '#ef4444' },
-    { label: '待回測', count: summary.value.Pending, color: '#9ca3af' }
-  ]
+    { label: '未成交', count: summary.value.NotTriggered ?? 0, color: '#64748b' },
+    { label: '驗證中', count: summary.value.Pending, color: '#9ca3af' }
+  ].filter(i => i.count > 0)
   let cumulative = 0
   return items.map(item => {
     const pct = item.count / total * 100
@@ -213,6 +227,52 @@ const pieGradient = computed(() => {
       </div>
 
       <template v-else>
+        <!-- KPI 卡片列（期望值指標） -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+          <!-- 每筆期望值（最重要） -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border-2 shadow-sm p-5"
+            :class="(summary.Expectancy ?? 0) > 0 ? 'border-green-500' : (summary.Expectancy ?? 0) < 0 ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">每筆期望值 ★</p>
+            <p class="mt-2 text-3xl font-bold"
+              :class="(summary.Expectancy ?? 0) > 0 ? 'text-green-600 dark:text-green-400' : (summary.Expectancy ?? 0) < 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'">
+              {{ fmtKpi(summary.Expectancy, '%') }}
+            </p>
+            <p class="mt-1 text-xs text-gray-400">平均每筆交易損益</p>
+          </div>
+          <!-- 獲利因子 -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">獲利因子</p>
+            <p class="mt-2 text-3xl font-bold"
+              :class="summary.ProfitFactor == null ? 'text-gray-600 dark:text-gray-300' : summary.ProfitFactor >= 1 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'">
+              {{ fmtRatio(summary.ProfitFactor) }}
+            </p>
+            <p class="mt-1 text-xs text-gray-400">總獲利 ÷ 總虧損</p>
+          </div>
+          <!-- 賺賠比 -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">賺賠比</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ fmtRatio(summary.PayoffRatio) }}</p>
+            <p class="mt-1 text-xs text-gray-400">平均獲利 ÷ 平均虧損</p>
+          </div>
+          <!-- 平均獲利／虧損 -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">平均獲利／虧損</p>
+            <p class="mt-2 text-2xl font-bold">
+              <span class="text-green-600 dark:text-green-400">{{ fmtKpi(summary.AvgWinPercent, '%') }}</span>
+              <span class="text-gray-400 mx-1">/</span>
+              <span class="text-red-500 dark:text-red-400">{{ fmtKpi(summary.AvgLossPercent, '%') }}</span>
+            </p>
+            <p class="mt-1 text-xs text-gray-400">獲利與虧損交易的平均</p>
+          </div>
+          <!-- 成交率 -->
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5"
+            :title="`未成交 ${summary.NotTriggered ?? 0} 筆（股價未回到買點）`">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">成交率</p>
+            <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ fillRate === null ? '-' : `${fillRate}%` }}</p>
+            <p class="mt-1 text-xs text-gray-400">未成交 {{ summary.NotTriggered ?? 0 }} 筆</p>
+          </div>
+        </div>
+
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-green-500">
@@ -264,6 +324,24 @@ const pieGradient = computed(() => {
           </span>
         </div>
 
+        <!-- 累積損益曲線 -->
+        <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 mb-6">
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">累積損益曲線</h3>
+          <EquityCurveChart :records="chartRecords" />
+        </div>
+
+        <!-- 月度期望值 + 模型校準 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">月度期望值</h3>
+            <MonthlyExpectancyChart :records="chartRecords" />
+          </div>
+          <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">模型校準圖</h3>
+            <CalibrationChart :records="chartRecords" />
+          </div>
+        </div>
+
         <!-- Detail Table -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
@@ -277,12 +355,13 @@ const pieGradient = computed(() => {
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">模型勝率</th>
+                  <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">損益</th>
                   <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">狀態</th>
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
                 <tr v-if="details.length === 0">
-                  <td colspan="8" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                  <td colspan="9" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                     {{ summary.Total === 0 ? '該區間內沒有推薦紀錄' : '沒有明細資料' }}
                   </td>
                 </tr>
@@ -310,6 +389,9 @@ const pieGradient = computed(() => {
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-purple-600 dark:text-purple-400 font-semibold">
                     {{ formatProbability(record.ModelProbability) }}
+                  </td>
+                  <td :class="['px-6 py-4 whitespace-nowrap text-sm font-semibold', pnlColorClass(record.BacktestPnlPercent)]">
+                    {{ formatPnl(record.BacktestPnlPercent) }}
                   </td>
                   <td class="px-6 py-4 whitespace-nowrap">
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
