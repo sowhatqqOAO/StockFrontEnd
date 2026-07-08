@@ -5,6 +5,7 @@ import { useMarketStore } from '@/stores/market'
 import { useDebouncedSymbolSearch } from '@/composables/useDebouncedSymbolSearch'
 import PaginationBar from '@/components/PaginationBar.vue'
 import InfoTooltip from '@/components/InfoTooltip.vue'
+import CollapsibleSection from '@/components/CollapsibleSection.vue'
 import EquityCurveChart from '@/components/charts/EquityCurveChart.vue'
 import MonthlyExpectancyChart from '@/components/charts/MonthlyExpectancyChart.vue'
 import CalibrationChart from '@/components/charts/CalibrationChart.vue'
@@ -289,6 +290,8 @@ const pieGradient = computed(() => {
           </div>
         </div>
 
+        <!-- 狀態分布（次要，預設收合） -->
+        <CollapsibleSection title="狀態分布" :default-open="false">
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-green-500">
@@ -354,7 +357,10 @@ const pieGradient = computed(() => {
             成功率 <strong class="text-green-600 dark:text-green-400">{{ summary.SuccessRate }}%</strong>
           </span>
         </div>
+        </CollapsibleSection>
 
+        <!-- 績效圖表（預設展開） -->
+        <CollapsibleSection title="績效圖表">
         <!-- 累積損益曲線 -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 mb-6">
           <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1">
@@ -381,7 +387,10 @@ const pieGradient = computed(() => {
             <CalibrationChart :records="chartRecords" />
           </div>
         </div>
+        </CollapsibleSection>
 
+        <!-- 推薦明細（預設展開） -->
+        <CollapsibleSection title="推薦明細">
         <!-- Detail Table -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
           <div class="overflow-x-auto">
@@ -452,6 +461,7 @@ const pieGradient = computed(() => {
             @change="fetchData"
           />
         </div>
+        </CollapsibleSection>
       </template>
     </div>
   </div>
