@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import type { HistoryRecord } from '@/types'
 import { formatDate } from '@/utils/date'
 import { getStockLinkUrl, recordKey, formatProbability, formatPnl, pnlColorClass, getStatusInfo } from '@/utils/stock'
+import InfoTooltip from '@/components/InfoTooltip.vue'
 
 const props = withDefaults(defineProps<{
   records: HistoryRecord[]
@@ -69,8 +70,12 @@ watch(() => props.records, () => {
               模型勝率
               <span aria-hidden="true" class="text-[10px]">{{ probSort === 'desc' ? '▼' : probSort === 'asc' ? '▲' : '⇅' }}</span>
             </button>
+            <InfoTooltip text="AI 模型在推薦當下預測這筆會達標的機率。2026-07-05 前的舊資料沒有此欄，顯示 -。" />
           </th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">損益</th>
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+            損益
+            <InfoTooltip text="回測算出的這筆實際損益 %。未回測或未成交顯示 -。" />
+          </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">狀態</th>
           <th scope="col" class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
         </tr>

@@ -4,6 +4,7 @@ import { fetchStatistics } from '@/services/statistics'
 import { useMarketStore } from '@/stores/market'
 import { useDebouncedSymbolSearch } from '@/composables/useDebouncedSymbolSearch'
 import PaginationBar from '@/components/PaginationBar.vue'
+import InfoTooltip from '@/components/InfoTooltip.vue'
 import EquityCurveChart from '@/components/charts/EquityCurveChart.vue'
 import MonthlyExpectancyChart from '@/components/charts/MonthlyExpectancyChart.vue'
 import CalibrationChart from '@/components/charts/CalibrationChart.vue'
@@ -232,7 +233,10 @@ const pieGradient = computed(() => {
           <!-- 每筆期望值（最重要） -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border-2 shadow-sm p-5"
             :class="(summary.Expectancy ?? 0) > 0 ? 'border-green-500' : (summary.Expectancy ?? 0) < 0 ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">每筆期望值 ★</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              每筆期望值 ★
+              <InfoTooltip text="每做一筆交易平均賺賠多少 %。這是最重要的指標：只要為正，長期就是賺錢的策略，即使勝率低也一樣。" />
+            </p>
             <p class="mt-2 text-3xl font-bold"
               :class="(summary.Expectancy ?? 0) > 0 ? 'text-green-600 dark:text-green-400' : (summary.Expectancy ?? 0) < 0 ? 'text-red-500 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'">
               {{ fmtKpi(summary.Expectancy, '%') }}
@@ -241,7 +245,10 @@ const pieGradient = computed(() => {
           </div>
           <!-- 獲利因子 -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">獲利因子</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              獲利因子
+              <InfoTooltip text="所有獲利交易的總和 ÷ 所有虧損交易的總和。大於 1 代表整體賺錢，小於 1 代表賠錢；1.5 以上通常視為穩健。" />
+            </p>
             <p class="mt-2 text-3xl font-bold"
               :class="summary.ProfitFactor == null ? 'text-gray-600 dark:text-gray-300' : summary.ProfitFactor >= 1 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'">
               {{ fmtRatio(summary.ProfitFactor) }}
@@ -250,13 +257,19 @@ const pieGradient = computed(() => {
           </div>
           <!-- 賺賠比 -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">賺賠比</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              賺賠比
+              <InfoTooltip text="平均一筆賺錢交易的獲利，是平均一筆賠錢交易虧損的幾倍。2 代表賺的時候平均賺的是賠的時候的兩倍。" />
+            </p>
             <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ fmtRatio(summary.PayoffRatio) }}</p>
             <p class="mt-1 text-xs text-gray-400">平均獲利 ÷ 平均虧損</p>
           </div>
           <!-- 平均獲利／虧損 -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">平均獲利／虧損</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              平均獲利／虧損
+              <InfoTooltip text="左邊是所有賺錢交易的平均獲利 %，右邊是所有賠錢交易的平均虧損 %。用來看單筆的賺賠幅度。" />
+            </p>
             <p class="mt-2 text-2xl font-bold">
               <span class="text-green-600 dark:text-green-400">{{ fmtKpi(summary.AvgWinPercent, '%') }}</span>
               <span class="text-gray-400 mx-1">/</span>
@@ -267,7 +280,10 @@ const pieGradient = computed(() => {
           <!-- 成交率 -->
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5"
             :title="`未成交 ${summary.NotTriggered ?? 0} 筆（股價未回到買點）`">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">成交率</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              成交率
+              <InfoTooltip text="推薦後股價實際回到買點、交易成立的比例。未成交代表股價一路上漲從未回檔到買點，交易並不存在，不計入勝率。" />
+            </p>
             <p class="mt-2 text-3xl font-bold text-gray-800 dark:text-gray-100">{{ fillRate === null ? '-' : `${fillRate}%` }}</p>
             <p class="mt-1 text-xs text-gray-400">未成交 {{ summary.NotTriggered ?? 0 }} 筆</p>
           </div>
@@ -276,22 +292,34 @@ const pieGradient = computed(() => {
         <!-- Summary Cards -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-green-500">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">成功達標</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              成功達標
+              <InfoTooltip text="回測期間內股價觸及目標停利價的推薦筆數。" />
+            </p>
             <p class="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{{ summary.Success }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Success, completedTotal) }}%</p>
           </div>
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-orange-500">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">未觸發停損停利</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              未觸發停損停利
+              <InfoTooltip text="到回測期限（10 個交易日）結束前，股價既沒觸及停利也沒觸及停損，依到期當天價格計算損益（可能小賺或小賠）。" />
+            </p>
             <p class="mt-2 text-3xl font-bold text-orange-600 dark:text-orange-400">{{ summary.Failed }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Failed, completedTotal) }}%</p>
           </div>
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-red-500">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">觸發停損</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              觸發停損
+              <InfoTooltip text="回測期間內股價跌到建議停損價、觸發出場的推薦筆數。" />
+            </p>
             <p class="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">{{ summary.StopLoss }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.StopLoss, completedTotal) }}%</p>
           </div>
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 border-l-4 border-gray-400">
-            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">待回測</p>
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400 flex items-center gap-1">
+              待回測
+              <InfoTooltip text="推薦後尚未滿 10 個交易日、回測結果還沒出爐的筆數，不列入勝率與期望值計算。" />
+            </p>
             <p class="mt-2 text-3xl font-bold text-gray-600 dark:text-gray-300">{{ summary.Pending }}</p>
             <p class="mt-1 text-xs text-gray-400">{{ pct(summary.Pending, summary.Total) }}%</p>
           </div>
@@ -299,7 +327,10 @@ const pieGradient = computed(() => {
 
         <!-- Pie Chart -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 flex flex-col items-center justify-center mb-6">
-          <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">整體成功率</p>
+          <p class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-1">
+            整體成功率
+            <InfoTooltip text="已回測交易中觸及停利價的比例（分母不含驗證中與未成交）。注意：成功率與期望值方向可能不一致——勝率低但賺賠比高也能整體賺錢。" />
+          </p>
           <div class="relative w-40 h-40">
             <div class="w-full h-full rounded-full" :style="{ background: pieGradient }"></div>
             <div class="absolute inset-0 flex items-center justify-center">
@@ -326,18 +357,27 @@ const pieGradient = computed(() => {
 
         <!-- 累積損益曲線 -->
         <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5 mb-6">
-          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">累積損益曲線</h3>
+          <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1">
+            累積損益曲線
+            <InfoTooltip text="假設每筆交易投入等額資金，把每筆損益依日期順序累加起來的走勢。線往上代表策略在賺、往下代表在賠。" />
+          </h3>
           <EquityCurveChart :records="chartRecords" />
         </div>
 
         <!-- 月度期望值 + 模型校準 -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">月度期望值</h3>
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1">
+              月度期望值
+              <InfoTooltip text="每個月的每筆平均損益 %。綠色代表該月策略賺錢、紅色代表賠錢，用來看策略在多頭或空頭月份的表現差異。" />
+            </h3>
             <MonthlyExpectancyChart :records="chartRecords" />
           </div>
           <div class="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm p-5">
-            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4">模型校準圖</h3>
+            <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1">
+              模型校準圖
+              <InfoTooltip text="把推薦依 AI 模型預測的勝率分成三組，看每組實際的成功率。若模型準確，預測勝率越高的組別實際成功率也應該越高（由左往右遞增）。" />
+            </h3>
             <CalibrationChart :records="chartRecords" />
           </div>
         </div>
