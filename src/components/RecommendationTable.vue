@@ -65,16 +65,20 @@ watch(() => props.records, () => {
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">目標價</th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">停損價</th>
           <th scope="col" :aria-sort="probSort === 'desc' ? 'descending' : probSort === 'asc' ? 'ascending' : 'none'"
-            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            <button @click="toggleProbSort" class="inline-flex items-center gap-1 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors" title="點擊排序">
-              模型勝率
-              <span aria-hidden="true" class="text-[10px]">{{ probSort === 'desc' ? '▼' : probSort === 'asc' ? '▲' : '⇅' }}</span>
-            </button>
-            <InfoTooltip text="AI 模型在推薦當下預測這筆會達標的機率。2026-07-05 前的舊資料沒有此欄，顯示 -。" />
+            class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+            <span class="inline-flex items-center gap-1 align-middle">
+              <button @click="toggleProbSort" class="inline-flex items-center gap-1 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors" title="點擊排序">
+                模型勝率
+                <span aria-hidden="true" class="text-[10px]">{{ probSort === 'desc' ? '▼' : probSort === 'asc' ? '▲' : '⇅' }}</span>
+              </button>
+              <InfoTooltip text="AI 模型在推薦當下預測這筆會達標的機率。2026-07-05 前的舊資料沒有此欄，顯示 -。" />
+            </span>
           </th>
-          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-            損益
-            <InfoTooltip text="回測算出的這筆實際損益 %。未回測或未成交顯示 -。" />
+          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
+            <span class="inline-flex items-center gap-1 align-middle">
+              損益
+              <InfoTooltip text="回測算出的這筆實際損益 %。未回測或未成交顯示 -。" />
+            </span>
           </th>
           <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">狀態</th>
           <th scope="col" class="px-6 py-3 relative"><span class="sr-only">詳細</span></th>
